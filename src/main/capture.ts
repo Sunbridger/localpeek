@@ -40,7 +40,14 @@ async function drive(window: BrowserWindow, target: string): Promise<void> {
     mysqlTable4: envValue('CAPTURE_MYSQL_TABLE4') ?? 'runs',
     mysqlTable5: envValue('CAPTURE_MYSQL_TABLE5') ?? 'releases',
     redisInstance: envValue('CAPTURE_REDIS_INSTANCE') ?? '本地 Redis',
-    project: envValue('CAPTURE_PROJECT') ?? 'demo-project'
+    project: envValue('CAPTURE_PROJECT') ?? 'demo-project',
+    demoMysql: envValue('CAPTURE_DEMO_MYSQL') ?? 'localpeek-demo-mysql',
+    demoRedis: envValue('CAPTURE_DEMO_REDIS') ?? 'localpeek-demo-redis',
+    demoDatabase: envValue('CAPTURE_DEMO_DATABASE') ?? 'demo_shop',
+    demoTable: envValue('CAPTURE_DEMO_TABLE') ?? 'customers',
+    demoPattern: envValue('CAPTURE_DEMO_REDIS_PATTERN') ?? 'localpeek:demo:*',
+    demoProject: envValue('CAPTURE_DEMO_PROJECT') ?? 'localpeek-demo',
+    demoPorts: [5199, 5198]
   }
   const script = `(async () => {
     const F = ${JSON.stringify(fixtures)}
@@ -95,6 +102,23 @@ async function drive(window: BrowserWindow, target: string): Promise<void> {
       document.dispatchEvent(makeMouse('mouseup', x + dx, y + dy, 0))
       await sleep(300)
       return true
+    }
+    const setInputValue = (input, value) => {
+      const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+      setter.call(input, value)
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    }
+    const hideSidebar = () => {
+      const sidebarPanel = document.querySelector('.sidebar')?.closest('.ant-splitter-panel')
+      if (sidebarPanel) sidebarPanel.style.display = 'none'
+      document.querySelectorAll('.main-splitter .ant-splitter-bar').forEach((el) => {
+        el.style.display = 'none'
+      })
+      const contentPanel = document.querySelector('.content')?.closest('.ant-splitter-panel')
+      if (contentPanel) {
+        contentPanel.style.flex = '1 1 auto'
+        contentPanel.style.width = 'auto'
+      }
     }
     const waitFor = async (fn, timeout = 15000) => {
       const start = Date.now()
@@ -535,6 +559,94 @@ async function drive(window: BrowserWindow, target: string): Promise<void> {
       result.headAfter = document.querySelector('.web-log-head')?.textContent?.slice(0, 160)
       result.logAfter = document.querySelector('.web-log-view')?.textContent?.slice(0, 220)
       result.panelOpenAfter = !!document.querySelector('.web-log-panel')
+    } else if ('${target}' === 'readme-mysql') {
+      result.group = clickGroup('MySQL')
+      await sleep(1000)
+      result.instance = clickTree(F.demoMysql)
+      await sleep(3500)
+      result.database = clickRow(F.demoDatabase)
+      await sleep(2500)
+      result.table = clickTree(F.demoTable)
+      await sleep(4500)
+      const headers = [...document.querySelectorAll('.content .ant-table-thead th')].map((th) => th.textContent?.trim())
+      result.headers = headers
+      const valueIndex = headers.indexOf('profile')
+      const rows = [...document.querySelectorAll('.content .ant-table-tbody tr.ant-table-row')]
+      result.rows = rows.length
+      const cell =
+        valueIndex >= 0
+          ? rows[0]?.querySelectorAll('td')[valueIndex]?.querySelector('.cell-long-clickable')
+          : null
+      result.cell = !!cell
+      if (cell) cell.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await sleep(1500)
+      const jsonTab = [...document.querySelectorAll('.mysql-detail .ant-segmented-item')].find((el) => el.textContent && el.textContent.trim() === 'JSON')
+      if (jsonTab) jsonTab.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await sleep(900)
+      result.detail = !!document.querySelector('.mysql-detail')
+      result.jsonLines = document.querySelectorAll('.mysql-detail .json-line').length
+      hideSidebar()
+      await sleep(600)
+    } else if ('${target}' === 'readme-redis') {
+      result.group = expandGroup('Redis')
+      await sleep(900)
+      result.instance = clickTree(F.demoRedis)
+      await sleep(3500)
+      const matchInput = [...document.querySelectorAll('.redis-toolbar input')].find(
+        (input) => input.placeholder && input.placeholder.includes('MATCH')
+      )
+      result.match = !!matchInput
+      if (matchInput) setInputValue(matchInput, F.demoPattern)
+      await sleep(1800)
+      const rows = [...document.querySelectorAll('.content .ant-table-tbody tr.ant-table-row')]
+      result.rows = rows.length
+      let cell = null
+      for (const row of rows) {
+        const found = row.querySelectorAll('td')[1]?.querySelector('.cell-long-clickable')
+        if (found) {
+          cell = found
+          break
+        }
+      }
+      result.cell = !!cell
+      if (cell) cell.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await sleep(1800)
+      result.detail = !!document.querySelector('.redis-detail')
+      result.segmented = [...document.querySelectorAll('.redis-detail .ant-segmented-item-selected')].map((el) => el.textContent).join(',')
+      hideSidebar()
+      await sleep(600)
+    } else if ('${target}' === 'readme-web') {
+      try {
+        localStorage.removeItem('localpeek.webLogPorts.v1')
+        localStorage.removeItem('localpeek.webLogPort.v1')
+      } catch (error) {}
+      clickGroup('Web 应用')
+      await sleep(1000)
+      clickWebPort()
+      await sleep(3000)
+      const search = document.querySelector('.web-toolbar input')
+      if (search) setInputValue(search, F.demoProject)
+      await sleep(1500)
+      const findRow = (port) =>
+        [...document.querySelectorAll('.content .ant-table-tbody tr.ant-table-row')].find((r) => r.textContent && r.textContent.includes(':' + port))
+      const clickProcess = (port) => {
+        const cell = findRow(port)?.querySelector('.web-process-clickable')
+        if (!cell) return false
+        cell.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+        return true
+      }
+      result.clicks = []
+      for (const port of F.demoPorts) {
+        result.clicks.push(clickProcess(port))
+        await sleep(2400)
+      }
+      result.panels = document.querySelectorAll('.web-log-panel').length
+      result.rows = [...document.querySelectorAll('.content .ant-table-tbody tr.ant-table-row')].map((r) => r.textContent?.slice(0, 80))
+      document.querySelectorAll('.web-process .muted').forEach((el) => {
+        el.textContent = (el.textContent || '').replace(/sunbridger/g, 'demo')
+      })
+      hideSidebar()
+      await sleep(600)
     } else if ('${target}' === 'redis-value') {
       result.group = expandGroup('Redis')
       await sleep(800)
