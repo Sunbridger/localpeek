@@ -40,6 +40,20 @@ LocalPeek 是一个面向本机开发的 macOS 桌面工具：发现并只读浏
 - 可拖动布局、跟随系统 / 浅色 / 深色主题、重新扫描不打断当前页面
 - 只读：MySQL 只生成单条 SELECT；例外是用户确认后的「关闭端口 / 启动服务」
 
+## 截图
+
+**MySQL：数据浏览、按表记忆与 JSON 详情**
+
+![MySQL 数据浏览](docs/assets/mysql.png)
+
+**Redis：Value 列预览、数量摘要与 JSON 详情**
+
+![Redis Value 预览](docs/assets/redis.png)
+
+**Web 应用：项目端口管理与多面板实时日志**
+
+![Web 应用与实时日志](docs/assets/web-logs.png)
+
 ## 配置
 
 设置在配置文件的 `settings` 字段中调整，重启后生效。macOS 下默认位置：
