@@ -1,4 +1,5 @@
 import { ipcMain, shell } from 'electron'
+import type { AppSettings } from '../shared/settings'
 import type {
   CredentialInput,
   ManualConnectionInput,
@@ -21,6 +22,9 @@ export function registerIpc(manager: DbManager): void {
 
   ipcMain.handle('localpeek:scan', () => manager.scan())
   ipcMain.handle('localpeek:settings', () => manager.currentSettings())
+  ipcMain.handle('localpeek:settings:update', (_event, patch: Partial<AppSettings>) =>
+    manager.updateSettings(patch)
+  )
   ipcMain.handle('localpeek:paths', () => manager.paths())
   ipcMain.handle('localpeek:instances', () => manager.currentInstances())
   ipcMain.handle('localpeek:testConnection', (_event, input: ManualConnectionInput) =>

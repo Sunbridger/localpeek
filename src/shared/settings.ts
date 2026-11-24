@@ -77,6 +77,17 @@ function sanitizeRanges(value: unknown, fallback: PortRange[]): PortRange[] {
     : fallback.map(([start, end]) => [start, end] as PortRange)
 }
 
+/** 把设置页里的逗号/空白分隔输入解析成项目根目录列表。 */
+export function parseProjectRootsInput(input: string): string[] {
+  const roots: string[] = []
+  for (const item of input.split(/[,，\s]+/)) {
+    const root = item.trim().replace(/^\/+|\/+$/g, '')
+    if (!root || root.includes('/') || root.includes('\\') || roots.includes(root)) continue
+    roots.push(root)
+  }
+  return roots
+}
+
 function sanitizeRoots(value: unknown, fallback: string[]): string[] {
   if (!Array.isArray(value)) return [...fallback]
   const roots: string[] = []

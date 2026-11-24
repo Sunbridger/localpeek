@@ -628,7 +628,7 @@ async function drive(window: BrowserWindow, target: string): Promise<void> {
       if (search) setInputValue(search, F.demoProject)
       await sleep(1500)
       const findRow = (port) =>
-        [...document.querySelectorAll('.content .ant-table-tbody tr.ant-table-row')].find((r) => r.textContent && r.textContent.includes(':' + port))
+        [...document.querySelectorAll('.content .port-row')].find((r) => r.textContent && r.textContent.includes(':' + port))
       const clickProcess = (port) => {
         const cell = findRow(port)?.querySelector('.web-process-clickable')
         if (!cell) return false
@@ -641,10 +641,14 @@ async function drive(window: BrowserWindow, target: string): Promise<void> {
         await sleep(2400)
       }
       result.panels = document.querySelectorAll('.web-log-panel').length
-      result.rows = [...document.querySelectorAll('.content .ant-table-tbody tr.ant-table-row')].map((r) => r.textContent?.slice(0, 80))
-      document.querySelectorAll('.web-process .muted').forEach((el) => {
-        el.textContent = (el.textContent || '').replace(/sunbridger/g, 'demo')
-      })
+      result.rows = [...document.querySelectorAll('.content .port-row')].map((r) => r.textContent?.slice(0, 80))
+      const redactUser = () => {
+        document.querySelectorAll('.web-process .muted').forEach((el) => {
+          el.textContent = (el.textContent || '').replace(/sunbridger/g, 'demo')
+        })
+      }
+      redactUser()
+      setInterval(redactUser, 100)
       hideSidebar()
       await sleep(600)
     } else if ('${target}' === 'redis-value') {

@@ -1,16 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  App,
-  Button,
-  Empty,
-  Input,
-  Popconfirm,
-  Space,
-  Splitter,
-  Table,
-  Tag,
-  Tooltip
-} from 'antd'
+import { App, Button, Empty, Input, Popconfirm, Splitter, Tag, Tooltip } from 'antd'
 import {
   LinkOutlined,
   PlayCircleOutlined,
@@ -64,6 +53,242 @@ const UNKNOWN_PROJECT = '未识别项目'
 
 function projectNameOf(app: WebAppInfo): string {
   return app.project || UNKNOWN_PROJECT
+}
+
+function processesOf(record: WebAppInfo): Array<{
+  pid?: number
+  user?: string
+  command: string
+  commandLine?: string
+}> {
+  return record.processes && record.processes.length > 0
+    ? record.processes
+    : record.online
+      ? [
+          {
+            pid: record.pid,
+            user: record.user,
+            command: record.command,
+            commandLine: record.commandLine
+          }
+        ]
+      : []
+}
+
+interface PortRowProps {
+  record: WebAppInfo
+  focused: boolean
+  logOpen: boolean
+  killing: boolean
+  starting: boolean
+  onOpen: (app: WebAppInfo) => void
+  onKill: (app: WebAppInfo) => void
+  onStart: (app: WebAppInfo) => void
+  onToggleLog: (port: number) => void
+}
+
+function PortRow({
+  record,
+  focused,
+  logOpen,
+  killing,
+  starting,
+  onOpen,
+  onKill,
+  onStart,
+  onToggleLog
+}: PortRowProps) {
+  const processes = processesOf(record)
+  const pageText = record.title || record.server || record.contentType || '—'
+  const processTooltip = record.online ? (
+    <div className="web-process-tooltip">
+      {processes.map((item) => (
+        <div key={item.pid}>
+          PID {item.pid} · {item.command} · {item.user}
+        </div>
+      ))}
+      {record.commandLine ? <div className="mono">{record.commandLine}</div> : null}
+    </div>
+  ) : (
+    record.commandLine || record.command
+  )
+
+  return (
+    <div
+      className={[
+        'port-row',
+        record.online ? '' : 'is-offline',
+        focused ? 'is-focused' : '',
+        logOpen ? 'is-log-target' : ''
+      ]
+        .filter(Boolean)
+        .join(' ')}
+      data-port={record.port}
+    >
+      <div className="port-main">
+        <span
+          className={`port-status-dot ${record.online ? 'is-online' : 'is-offline'}`}
+          aria-hidden="true"
+        />
+        {record.online ? (
+          <button
+            type="button"
+            className="port-link mono"
+            onClick={() => onOpen(record)}
+            title={`在浏览器打开 :${record.port}`}
+          >
+            :{record.port}
+          </button>
+        ) : (
+          <span className="port-offline mono">:{record.port}</span>
+        )}
+        <Tooltip
+          title={
+            record.online
+              ? `HTTP ${record.status ?? '—'}${record.server ? ` · ${record.server}` : ''}`
+              : `上次在线：${formatDateTime(record.lastSeenAt)}`
+          }
+        >
+          <Tag color={record.online ? 'success' : undefined} className="port-tag">
+            {record.online ? '在线' : '已离线'}
+          </Tag>
+        </Tooltip>
+        <Tag color={ROLE_META[record.role].color} className="port-tag">
+          {ROLE_META[record.role].label}
+        </Tag>
+      </div>
+
+      <div className="port-page">
+        <Tooltip
+          title={[record.server, record.contentType].filter(Boolean).join(' · ') || pageText}
+          placement="topLeft"
+        >
+          <span className="port-page-text">{pageText}</span>
+        </Tooltip>
+      </div>
+
+      <div className="port-process">
+        <Tooltip title={processTooltip} placement="topLeft">
+          <div
+            className="web-process web-process-clickable"
+            role="button"
+            tabIndex={0}
+            aria-label={`查看端口 ${record.port} 的实时日志`}
+            onClick={(event) => {
+              event.stopPropagation()
+              onToggleLog(record.port)
+            }}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') return
+              event.preventDefault()
+              onToggleLog(record.port)
+            }}
+          >
+            <span className="mono">
+              {record.command}
+              {processes.length > 1 ? ` +${processes.length - 1}` : ''}
+            </span>
+            <span className="muted">
+              {record.online
+                ? `PID ${record.pid} · ${record.user}${
+                    processes.length > 1 ? ` · 共 ${processes.length} 个进程` : ''
+                  }`
+                : `上次在线 ${formatDateTime(record.lastSeenAt)}`}
+            </span>
+          </div>
+        </Tooltip>
+      </div>
+
+      <div className="port-actions">
+        {record.online ? (
+          <>
+            <Tooltip title="在浏览器打开">
+              <Button
+                size="small"
+                type="text"
+                className="port-action"
+                icon={<LinkOutlined />}
+                aria-label={`打开端口 ${record.port}`}
+                onClick={() => onOpen(record)}
+              />
+            </Tooltip>
+            <Tooltip
+              title={
+                record.killable
+                  ? '先 SIGTERM，未退出再 SIGKILL'
+                  : record.killBlockedReason || '不可关闭'
+              }
+            >
+              <span>
+                <Popconfirm
+                  title={`强制关闭端口 ${record.port}？`}
+                  description={
+                    <div className="kill-confirm">
+                      <div className="mono">{record.commandLine || record.command}</div>
+                      <div className="muted">
+                        PID {record.pid}
+                        {processes.length > 1 ? ` 等 ${processes.length} 个进程` : ''}
+                      </div>
+                    </div>
+                  }
+                  okText="关闭进程"
+                  cancelText="取消"
+                  okButtonProps={{ danger: true }}
+                  disabled={!record.killable}
+                  onConfirm={() => onKill(record)}
+                >
+                  <Button
+                    size="small"
+                    type="text"
+                    danger
+                    className="port-action"
+                    disabled={!record.killable}
+                    loading={killing}
+                    icon={<StopOutlined />}
+                    aria-label={`关闭端口 ${record.port}`}
+                  />
+                </Popconfirm>
+              </span>
+            </Tooltip>
+          </>
+        ) : (
+          <Tooltip
+            title={
+              record.startable
+                ? '按上次的目录与命令重新启动'
+                : '缺少历史启动命令或工作目录，无法一键启动'
+            }
+          >
+            <span>
+              <Popconfirm
+                title={`重新启动端口 ${record.port}？`}
+                description={
+                  <div className="kill-confirm">
+                    <div className="muted">{record.cwd || '未知目录'}</div>
+                    <div className="mono">{record.commandLine || record.command}</div>
+                  </div>
+                }
+                okText="启动服务"
+                cancelText="取消"
+                disabled={!record.startable}
+                onConfirm={() => onStart(record)}
+              >
+                <Button
+                  size="small"
+                  type="text"
+                  className="port-action"
+                  disabled={!record.startable}
+                  loading={starting}
+                  icon={<PlayCircleOutlined />}
+                  aria-label={`启动端口 ${record.port}`}
+                />
+              </Popconfirm>
+            </span>
+          </Tooltip>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default function WebAppsPane({
@@ -166,27 +391,6 @@ export default function WebAppsPane({
         )
       }))
   }, [filtered, projects])
-
-  const orderedRows = useMemo(
-    () => displayGroups.flatMap((group) => group.rows),
-    [displayGroups]
-  )
-
-  const firstRowIndexByName = useMemo(() => {
-    const map = new Map<string, number>()
-    let index = 0
-    for (const group of displayGroups) {
-      map.set(group.name, index)
-      index += group.rows.length
-    }
-    return map
-  }, [displayGroups])
-
-  const groupSizeByName = useMemo(() => {
-    const map = new Map<string, number>()
-    for (const group of displayGroups) map.set(group.name, group.rows.length)
-    return map
-  }, [displayGroups])
 
   const refresh = async (): Promise<void> => {
     setScanning(true)
@@ -328,332 +532,122 @@ export default function WebAppsPane({
 
         <Splitter orientation="vertical" className="web-splitter">
           <Splitter.Panel min={160} style={{ overflow: 'hidden' }}>
-            <div className="web-table-scroll">
-        <Table
-          size="small"
-          rowKey="port"
-          dataSource={orderedRows}
-          pagination={false}
-          scroll={{ x: 'max-content' }}
-          rowClassName={(record) =>
-            [
-              record.port === focusPort ? 'row-active' : '',
-              record.online ? '' : 'row-offline',
-              logPorts.includes(record.port) ? 'row-log-target' : ''
-            ]
-              .filter(Boolean)
-              .join(' ')
-          }
-          locale={{
-            emptyText: (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={
-                  <span className="muted">
-                    {webApps.length > 0
-                      ? '没有匹配的项目或端口'
-                      : '暂无在线或历史记录。启动前端 / 后端后点击「重新检测」。'}
-                  </span>
-                }
-              />
-            )
-          }}
-          columns={[
-            {
-              title: '项目',
-              key: 'project',
-              width: 232,
-              onCell: (record, rowIndex) => {
-                const name = projectNameOf(record)
-                const first = firstRowIndexByName.get(name)
-                const size = groupSizeByName.get(name) ?? 1
-                return { rowSpan: rowIndex === first ? size : 0, style: { verticalAlign: 'top' } }
-              },
-              render: (_value, record) => {
-                const group = projectByName.get(projectNameOf(record))
-                if (!group) return null
-                const startLoading =
-                  batch?.name === group.name && batch.action === 'start'
-                const stopLoading =
-                  batch?.name === group.name && batch.action === 'stop'
-                return (
-                  <div className="project-merged-cell">
-                    <div className="project-merged-head">
-                      <span
-                        className="web-project-cell"
-                        title={group.name}
-                        onClick={() => setSearch(group.name)}
-                      >
-                        {group.name}
-                      </span>
-                      <span className="project-count">
-                        在线 {group.online} / {group.entries.length}
-                      </span>
-                    </div>
-                    <div className="project-merged-actions">
-                      <Tooltip title={`启动 ${group.name} 的离线端口`}>
-                        <Button
-                          size="small"
-                          type="text"
-                          icon={<PlayCircleOutlined />}
-                          disabled={group.startable === 0 || batch !== null}
-                          loading={startLoading}
-                          onClick={() => startProject(group)}
-                        >
-                          启动 {group.startable > 0 ? group.startable : ''}
-                        </Button>
-                      </Tooltip>
-                      <Popconfirm
-                        title={`关闭 ${group.name} 的 ${group.killable} 个在线端口？`}
-                        description="将对项目内所有在线端口执行 SIGTERM → SIGKILL"
-                        okText="全部关闭"
-                        cancelText="取消"
-                        okButtonProps={{ danger: true }}
-                        disabled={group.killable === 0 || batch !== null}
-                        onConfirm={() => stopProject(group)}
-                      >
-                        <Button
-                          size="small"
-                          type="text"
-                          danger
-                          icon={<StopOutlined />}
-                          disabled={group.killable === 0 || batch !== null}
-                          loading={stopLoading}
-                        >
-                          停止 {group.killable > 0 ? group.killable : ''}
-                        </Button>
-                      </Popconfirm>
-                    </div>
-                  </div>
-                )
-              }
-            },
-            {
-              title: '端口',
-              dataIndex: 'port',
-              width: 150,
-              render: (port: number, record) =>
-                record.online ? (
-                  <Button
-                    type="link"
-                    size="small"
-                    className="mono web-port-link"
-                    onClick={() => open(record)}
-                  >
-                    :{port}
-                  </Button>
-                ) : (
-                  <span className="mono web-port-offline">:{port}</span>
-                )
-            },
-            {
-              title: '状态',
-              key: 'state',
-              width: 100,
-              render: (_value, record) =>
-                record.online ? (
-                  <Tooltip
-                    title={`HTTP ${record.status ?? '—'}${record.server ? ` · ${record.server}` : ''}`}
-                  >
-                    <Tag color="success">在线</Tag>
-                  </Tooltip>
-                ) : (
-                  <Tooltip title={`上次在线：${formatDateTime(record.lastSeenAt)}`}>
-                    <Tag>已离线</Tag>
-                  </Tooltip>
-                )
-            },
-            {
-              title: '角色',
-              dataIndex: 'role',
-              width: 90,
-              render: (role: WebAppRole) => (
-                <Tag color={ROLE_META[role].color}>{ROLE_META[role].label}</Tag>
-              )
-            },
-            {
-              title: '页面 / 服务',
-              key: 'page',
-              render: (_value, record) => {
-                const text = record.title || record.server || record.contentType || '—'
-                return (
-                  <Tooltip
-                    title={[record.server, record.contentType].filter(Boolean).join(' · ') || text}
-                    placement="topLeft"
-                  >
-                    <span className="web-page-cell">{text}</span>
-                  </Tooltip>
-                )
-              }
-            },
-            {
-              title: '进程',
-              key: 'process',
-              render: (_value, record) => {
-                const processes =
-                  record.processes && record.processes.length > 0
-                    ? record.processes
-                    : record.online
-                      ? [
-                          {
-                            pid: record.pid,
-                            user: record.user,
-                            command: record.command,
-                            commandLine: record.commandLine
-                          }
-                        ]
-                      : []
-                return (
-                  <Tooltip
-                    title={
-                      record.online ? (
-                        <div className="web-process-tooltip">
-                          {processes.map((item) => (
-                            <div key={item.pid}>
-                              PID {item.pid} · {item.command} · {item.user}
-                            </div>
-                          ))}
-                          {record.commandLine ? (
-                            <div className="mono">{record.commandLine}</div>
-                          ) : null}
-                        </div>
-                      ) : (
-                        record.commandLine || record.command
-                      )
-                    }
-                    placement="topLeft"
-                  >
-                    <div
-                      className="web-process web-process-clickable"
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`查看端口 ${record.port} 的实时日志`}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        toggleLog(record.port)
-                      }}
-                      onKeyDown={(event) => {
-                        if (event.key !== 'Enter' && event.key !== ' ') return
-                        event.preventDefault()
-                        toggleLog(record.port)
-                      }}
-                    >
-                      <span className="mono">
-                        {record.command}
-                        {processes.length > 1 ? ` +${processes.length - 1}` : ''}
-                      </span>
+            <div className="web-list-scroll">
+              {displayGroups.length === 0 ? (
+                <div className="web-empty">
+                  <Empty
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={
                       <span className="muted">
-                        {record.online
-                          ? `PID ${record.pid} · ${record.user}${
-                              processes.length > 1 ? ` · 共 ${processes.length} 个进程` : ''
-                            }`
-                          : `上次在线 ${formatDateTime(record.lastSeenAt)}`}
+                        {webApps.length > 0
+                          ? '没有匹配的项目或端口'
+                          : '暂无在线或历史记录。启动前端 / 后端后点击「重新检测」。'}
                       </span>
-                    </div>
-                  </Tooltip>
-                )
-              }
-            },
-            {
-              title: '操作',
-              key: 'actions',
-              width: 200,
-              render: (_value, record) =>
-                record.online ? (
-                  <Space size={4}>
-                    <Button
-                      size="small"
-                      type="text"
-                      icon={<LinkOutlined />}
-                      onClick={() => open(record)}
-                    >
-                      打开
-                    </Button>
-                    <Tooltip
-                      title={
-                        record.killable
-                          ? '先 SIGTERM，未退出再 SIGKILL'
-                          : record.killBlockedReason || '不可关闭'
-                      }
-                    >
-                      <span>
-                        <Popconfirm
-                          title={`强制关闭端口 ${record.port}？`}
-                          description={
-                            <div className="kill-confirm">
-                              <div className="mono">{record.commandLine || record.command}</div>
-                              <div className="muted">
-                              PID {record.pid}
-                              {record.processes && record.processes.length > 1
-                                ? ` 等 ${record.processes.length} 个进程`
-                                : ''}
-                            </div>
-                            </div>
-                          }
-                          okText="关闭进程"
-                          cancelText="取消"
-                          okButtonProps={{ danger: true }}
-                          disabled={!record.killable}
-                          onConfirm={() => kill(record)}
-                        >
-                          <Button
-                            size="small"
-                            type="text"
-                            danger
-                            disabled={!record.killable}
-                            loading={killingPort === record.port}
-                            icon={<StopOutlined />}
-                          >
-                            关闭
-                          </Button>
-                        </Popconfirm>
-                      </span>
-                    </Tooltip>
-                  </Space>
-                ) : (
-                  <Tooltip
-                    title={
-                      record.startable
-                        ? '按上次的目录与命令重新启动'
-                        : '缺少历史启动命令或工作目录，无法一键启动'
                     }
-                  >
-                    <span>
-                      <Popconfirm
-                        title={`重新启动端口 ${record.port}？`}
-                        description={
-                          <div className="kill-confirm">
-                            <div className="muted">{record.cwd || '未知目录'}</div>
-                            <div className="mono">{record.commandLine || record.command}</div>
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="port-list-head" aria-hidden="true">
+                    <span>端口 / 状态</span>
+                    <span>页面 / 服务</span>
+                    <span>进程</span>
+                    <span>操作</span>
+                  </div>
+                  {displayGroups.map((group) => {
+                    const info = projectByName.get(group.name)
+                    if (!info) return null
+                    const visible = group.rows.length
+                    const startLoading =
+                      batch?.name === info.name && batch.action === 'start'
+                    const stopLoading =
+                      batch?.name === info.name && batch.action === 'stop'
+                    return (
+                      <section className="project-block" key={group.name}>
+                        <header className="project-head">
+                          <div className="project-title">
+                            <span
+                              className={`project-dot ${
+                                info.online > 0 ? 'is-online' : 'is-offline'
+                              }`}
+                              aria-hidden="true"
+                            />
+                            <button
+                              type="button"
+                              className="project-name"
+                              title={`筛选 ${info.name}`}
+                              onClick={() => setSearch(info.name)}
+                            >
+                              {info.name}
+                            </button>
+                            <span className="project-meta">
+                              在线 {info.online} / {info.entries.length}
+                            </span>
+                            {visible < info.entries.length ? (
+                              <span className="project-meta">· 显示 {visible}</span>
+                            ) : null}
                           </div>
-                        }
-                        okText="启动服务"
-                        cancelText="取消"
-                        disabled={!record.startable}
-                        onConfirm={() => start(record)}
-                      >
-                        <Button
-                          size="small"
-                          type="text"
-                          disabled={!record.startable}
-                          loading={startingPort === record.port}
-                          icon={<PlayCircleOutlined />}
-                        >
-                          启动
-                        </Button>
-                      </Popconfirm>
-                    </span>
-                  </Tooltip>
-                )
-            }
-          ]}
-        />
-        <div className="muted" style={{ marginTop: 10, fontSize: 11.5, lineHeight: 1.7 }}>
-          项目名取自命令行 / 工作目录中的 /mycode/&lt;项目&gt;/ 或 /code/&lt;项目&gt;/；离线记录保留最近
-          50 条，按项目一键启动会在原工作目录执行各自上次命令。Docker / SSH 转发或非当前用户的进程只展示，不会直接结束。
-          点击「进程」查看实时输出，最多并排 4 个（超出时替换最早打开的），分隔条可拖动调整宽度，
-          再次点击收起。
-        </div>
+                          <div className="project-actions">
+                            <Tooltip title={`启动 ${info.name} 的离线端口`}>
+                              <Button
+                                size="small"
+                                type="text"
+                                icon={<PlayCircleOutlined />}
+                                disabled={info.startable === 0 || batch !== null}
+                                loading={startLoading}
+                                onClick={() => startProject(info)}
+                              >
+                                启动 {info.startable > 0 ? info.startable : ''}
+                              </Button>
+                            </Tooltip>
+                            <Popconfirm
+                              title={`关闭 ${info.name} 的 ${info.killable} 个在线端口？`}
+                              description="将对项目内所有在线端口执行 SIGTERM → SIGKILL"
+                              okText="全部关闭"
+                              cancelText="取消"
+                              okButtonProps={{ danger: true }}
+                              disabled={info.killable === 0 || batch !== null}
+                              onConfirm={() => stopProject(info)}
+                            >
+                              <Button
+                                size="small"
+                                type="text"
+                                danger
+                                icon={<StopOutlined />}
+                                disabled={info.killable === 0 || batch !== null}
+                                loading={stopLoading}
+                              >
+                                停止 {info.killable > 0 ? info.killable : ''}
+                              </Button>
+                            </Popconfirm>
+                          </div>
+                        </header>
+                        <div className="port-list">
+                          {group.rows.map((record) => (
+                            <PortRow
+                              key={record.port}
+                              record={record}
+                              focused={record.port === focusPort}
+                              logOpen={logPorts.includes(record.port)}
+                              killing={killingPort === record.port}
+                              starting={startingPort === record.port}
+                              onOpen={open}
+                              onKill={kill}
+                              onStart={start}
+                              onToggleLog={toggleLog}
+                            />
+                          ))}
+                        </div>
+                      </section>
+                    )
+                  })}
+                </>
+              )}
+              <div className="muted web-list-note">
+                项目名取自设置中的项目根目录（默认 /mycode/、/code/，可在设置里修改）；离线记录保留最近
+                50 条。点击「进程」查看实时输出，最多并排 4 个（超出时替换最早打开的），分隔条可拖动，
+                再次点击收起。Docker / SSH 转发或非当前用户的进程只展示，不会直接结束。
+              </div>
             </div>
           </Splitter.Panel>
           {logPorts.length > 0 ? (

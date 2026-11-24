@@ -24,7 +24,7 @@ import {
   formatTime,
   instanceKey,
   parseSelection,
-  tableKey
+  webKey
 } from './utils'
 
 export default function App({
@@ -116,6 +116,31 @@ export default function App({
     },
     [instances]
   )
+
+  useEffect(() => {
+    const offNavigate = api.onNavigate((port) => navigate(webKey(port)))
+    const offOpenSettings = api.onOpenSettings(() => setSettingsOpen(true))
+    const offScanResult = api.onScanResult((result) => {
+      setInstances(result.instances)
+      setWebApps(result.webApps)
+      setScanned({
+        scannedAt: result.scannedAt,
+        dockerAvailable: result.dockerAvailable
+      })
+      setSelectedKey((previous) => {
+        const current = parseSelection(previous)
+        if (!current || current.type === 'web') return previous
+        return result.instances.some((instance) => instance.id === current.instanceId)
+          ? previous
+          : null
+      })
+    })
+    return () => {
+      offNavigate()
+      offOpenSettings()
+      offScanResult()
+    }
+  }, [navigate])
 
   const handleTreeSelect = useCallback((key: string) => {
     setSelectedKey(key)
@@ -341,6 +366,7 @@ export default function App({
         onThemeModeChange={onThemeModeChange}
         onClose={() => setSettingsOpen(false)}
         onWebAppsUpdated={handleWebAppsUpdated}
+        onRescan={runScan}
       />
     </div>
   )

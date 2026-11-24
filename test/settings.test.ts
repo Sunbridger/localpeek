@@ -1,5 +1,28 @@
 import { describe, expect, test } from 'vitest'
-import { DEFAULT_SETTINGS, sanitizeSettings } from '../src/shared/settings'
+import {
+  DEFAULT_SETTINGS,
+  parseProjectRootsInput,
+  sanitizeSettings
+} from '../src/shared/settings'
+
+describe('parseProjectRootsInput', () => {
+  test('parses comma, Chinese comma and whitespace separated roots', () => {
+    expect(parseProjectRootsInput('mycode, code，work  projects')).toEqual([
+      'mycode',
+      'code',
+      'work',
+      'projects'
+    ])
+  })
+
+  test('strips leading/trailing slashes and deduplicates', () => {
+    expect(parseProjectRootsInput(' /mycode/ , code, mycode ')).toEqual(['mycode', 'code'])
+  })
+
+  test('ignores empty and nested values', () => {
+    expect(parseProjectRootsInput('code, , a/b, c\\d')).toEqual(['code'])
+  })
+})
 
 describe('sanitizeSettings', () => {
   test('returns defaults for missing or invalid input', () => {

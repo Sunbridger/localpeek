@@ -1,10 +1,27 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import type { LocalPeekApi, WebLogLinesEvent } from '../shared/types'
+import type { LocalPeekApi, ScanResult, WebLogLinesEvent } from '../shared/types'
 
 const api: LocalPeekApi = {
   scan: () => ipcRenderer.invoke('localpeek:scan'),
   settings: () => ipcRenderer.invoke('localpeek:settings'),
+  updateSettings: (patch) => ipcRenderer.invoke('localpeek:settings:update', patch),
   paths: () => ipcRenderer.invoke('localpeek:paths'),
+  onNavigate: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, port: number): void => callback(port)
+    ipcRenderer.on('localpeek:navigate', handler)
+    return () => ipcRenderer.removeListener('localpeek:navigate', handler)
+  },
+  onOpenSettings: (callback) => {
+    const handler = (): void => callback()
+    ipcRenderer.on('localpeek:openSettings', handler)
+    return () => ipcRenderer.removeListener('localpeek:openSettings', handler)
+  },
+  onScanResult: (callback) => {
+    const handler = (_event: Electron.IpcRendererEvent, result: ScanResult): void =>
+      callback(result)
+    ipcRenderer.on('localpeek:scanResult', handler)
+    return () => ipcRenderer.removeListener('localpeek:scanResult', handler)
+  },
   currentInstances: () => ipcRenderer.invoke('localpeek:instances'),
   testConnection: (input) => ipcRenderer.invoke('localpeek:testConnection', input),
   addManual: (input) => ipcRenderer.invoke('localpeek:addManual', input),

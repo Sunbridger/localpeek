@@ -36,7 +36,7 @@ import {
 } from './config'
 import { lsofBinary, shellBinary } from './platform'
 import { APP_NAME } from '../shared/appInfo'
-import { type AppSettings } from '../shared/settings'
+import { type AppSettings, sanitizeSettings } from '../shared/settings'
 import type { DockerContainer } from './discovery/docker'
 import { isDockerCommand, isSshCommand } from './discovery/listeners'
 import { mapLimit } from './discovery/probe'
@@ -129,6 +129,22 @@ export class DbManager {
 
   currentSettings(): AppSettings {
     return loadConfig().settings
+  }
+
+  async updateSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
+    const config = loadConfig()
+    const previousRoots = config.settings.projectRoots.join('\u0000')
+    config.settings = sanitizeSettings({ ...config.settings, ...patch })
+    if (config.settings.projectRoots.join('\u0000') !== previousRoots) {
+      // 让历史记录在下次扫描时按新的根目录重新推导项目名
+      for (const entry of config.webHistory) entry.project = undefined
+    }
+    saveConfig()
+    return config.settings
+  }
+
+  currentWebApps(): WebAppInfo[] {
+    return this.webApps
   }
 
   paths(): { userData: string; configFile: string; logsDir: string } {

@@ -219,7 +219,11 @@ export interface AppPaths {
 export interface LocalPeekApi {
   scan: () => Promise<ScanResult>
   settings: () => Promise<AppSettings>
+  updateSettings: (patch: Partial<AppSettings>) => Promise<AppSettings>
   paths: () => Promise<AppPaths>
+  onNavigate: (callback: (port: number) => void) => () => void
+  onOpenSettings: (callback: () => void) => () => void
+  onScanResult: (callback: (result: ScanResult) => void) => () => void
   currentInstances: () => Promise<InstanceMeta[]>
   testConnection: (input: ManualConnectionInput) => Promise<TestConnectionResult>
   addManual: (input: ManualConnectionInput) => Promise<InstanceMeta>

@@ -1,6 +1,6 @@
 {
   "name": "localpeek",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "LocalPeek - 发现并浏览本机 Redis / MySQL / Web 应用",
   "main": "./out/main/index.js",
   "author": "Sunbridger (https://github.com/Sunbridger)",

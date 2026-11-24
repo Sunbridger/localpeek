@@ -16,7 +16,11 @@ const raw = window.localpeek
 export const api: LocalPeekApi = {
   scan: wrap(raw.scan),
   settings: wrap(raw.settings),
+  updateSettings: wrap(raw.updateSettings),
   paths: wrap(raw.paths),
+  onNavigate: raw.onNavigate,
+  onOpenSettings: raw.onOpenSettings,
+  onScanResult: raw.onScanResult,
   currentInstances: wrap(raw.currentInstances),
   testConnection: wrap(raw.testConnection),
   addManual: wrap(raw.addManual),

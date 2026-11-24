@@ -87,7 +87,7 @@
             <div class="hero-actions">
               <a
                 class="btn btn-primary"
-                href="https://github.com/Sunbridger/localpeek/releases/latest/download/LocalPeek-0.1.0-arm64.dmg"
+                href="https://github.com/Sunbridger/localpeek/releases/latest/download/LocalPeek-0.1.1-arm64.dmg"
               >
                 <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
                   <path d="M12 3v11m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
@@ -237,12 +237,13 @@
               <p class="feature-tag">Web 应用</p>
               <h3>端口、进程、日志，在一个页面。</h3>
               <p>
-                自动识别本机开发服务与项目名，展示端口、角色、页面标题和进程。
+                自动识别本机开发服务与项目名，按项目分组展示端口、角色、页面标题和进程。
                 点「进程」就打开实时日志，再点一次收起。
               </p>
               <ul class="checks">
-                <li>多进程占用同一端口时聚合展示</li>
+                <li>按项目分组，无合并单元格、无横向滚动</li>
                 <li>最多 4 个日志面板，分隔条可拖动</li>
+                <li>菜单栏常驻：关闭窗口后保留当前页面</li>
                 <li>终端启动的服务可「重启并捕获输出」</li>
               </ul>
             </div>
@@ -267,8 +268,8 @@
               <p>并排查看最多 4 个服务的输出，宽度可拖，长行自动换行。</p>
             </div>
             <div class="detail">
-              <p class="detail-kicker">历史重启</p>
-              <p>离线端口保留最近 50 条记录，可在原目录按上次命令重启。</p>
+              <p class="detail-kicker">菜单栏常驻</p>
+              <p>红叉只隐藏窗口，当前页面和日志面板不丢；⌘Q 才退出。</p>
             </div>
           </div>
         </div>
@@ -349,6 +350,10 @@
                   终端里直接启动的服务，输出留在终端里，LocalPeek 读不到。点日志面板里的
                   <span class="kbd">重启并捕获输出</span>，它会按历史命令重启一次，之后就能持续看日志。
                 </div>
+                <div class="hint">
+                  点窗口红叉只是隐藏窗口，应用会留在菜单栏，页面和日志面板保持原样。
+                  要真正退出请按 <span class="kbd">⌘Q</span>，或使用菜单栏里的「退出 LocalPeek」。
+                </div>
               </div>
             </li>
           </ol>
@@ -409,9 +414,12 @@
             <h2>默认够用，<br />也留了口子。</h2>
           </div>
           <div class="config-copy reveal">
-            <p>扫描范围、项目识别和 Redis 数据库数量都可以在配置文件里调整，重启生效。</p>
+            <p>
+              项目根目录可以直接在应用的「设置 → 项目识别」里改；扫描范围和 Redis 数据库数量
+              仍然通过配置文件调整，重启生效。
+            </p>
             <ul>
-              <li><code>settings.projectRoots</code> 决定项目名从哪一级目录取</li>
+              <li><code>项目根目录</code> 决定项目名从哪一级目录取，保存后自动重新扫描</li>
               <li><code>settings.webPortRanges</code> 扩大或收窄 Web 服务扫描范围</li>
               <li><code>settings.redisDbs</code> 适配自定义的 Redis 数据库数量</li>
               <li><code>settings.webHistoryLimit</code> 控制离线端口历史保留条数</li>
@@ -458,6 +466,10 @@
               <p>不会。应用没有遥测、没有账号、没有云端组件。所有扫描和查询都在本机完成。</p>
             </details>
             <details class="reveal">
+              <summary>点红叉后应用去哪了？</summary>
+              <p>窗口只是隐藏，应用继续在菜单栏运行，当前页面、筛选和日志面板都会保留。点菜单栏图标可以重新显示窗口；要真正退出请按 ⌘Q，或使用菜单栏里的「退出 LocalPeek」。</p>
+            </details>
+            <details class="reveal">
               <summary>怎么卸载？</summary>
               <p>退出应用，把 <code>/Applications/LocalPeek.app</code> 移到废纸篓，再删除 <code>~/Library/Application Support/LocalPeek</code> 即可。</p>
             </details>
@@ -474,7 +486,7 @@
             <div class="hero-actions center">
               <a
                 class="btn btn-primary"
-                href="https://github.com/Sunbridger/localpeek/releases/latest/download/LocalPeek-0.1.0-arm64.dmg"
+                href="https://github.com/Sunbridger/localpeek/releases/latest/download/LocalPeek-0.1.1-arm64.dmg"
               >
                 <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
                   <path d="M12 3v11m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
@@ -483,7 +495,7 @@
               </a>
               <a class="btn btn-ghost" href="https://github.com/Sunbridger/localpeek">在 GitHub 查看</a>
             </div>
-            <p class="fine">v0.1.0 · 未签名构建 · 首次打开请右键 → 打开 · 仅 Apple Silicon</p>
+            <p class="fine">v0.1.1 · 未签名构建 · 首次打开请右键 → 打开 · 仅 Apple Silicon</p>
           </div>
         </div>
       </section>
