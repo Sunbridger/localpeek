@@ -8,6 +8,7 @@ import {
   parseLsofFds,
   readTail,
   sanitizeLine,
+  sharedLogPorts,
   stripAnsi
 } from '../src/main/services/webLog'
 
@@ -81,6 +82,27 @@ describe('parseLsofFds', () => {
     expect(result.get(100)).toEqual(['/Users/me/logs/web-5173.log'])
     expect(result.get(200)).toEqual(['/Users/me/dev.log'])
     expect(result.has(300)).toBe(false)
+  })
+})
+
+describe('sharedLogPorts', () => {
+  test('reports other ports that point at the same log file', () => {
+    expect(
+      sharedLogPorts('/tmp/dev.log', [
+        { port: 5173, path: '/tmp/dev.log' },
+        { port: 8002, path: '/tmp/dev.log' },
+        { port: 3000, path: '/tmp/other.log' }
+      ], 5173)
+    ).toEqual([8002])
+  })
+
+  test('returns an empty list for per-port log files', () => {
+    expect(
+      sharedLogPorts('/tmp/web-5173.log', [
+        { port: 5173, path: '/tmp/web-5173.log' },
+        { port: 8002, path: '/tmp/web-8002.log' }
+      ], 5173)
+    ).toEqual([])
   })
 })
 

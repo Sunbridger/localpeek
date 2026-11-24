@@ -49,7 +49,15 @@ async function drive(window: BrowserWindow, target: string): Promise<void> {
     demoProject: envValue('CAPTURE_DEMO_PROJECT') ?? 'localpeek-demo',
     demoProjectA: envValue('CAPTURE_DEMO_PROJECT_A') ?? 'alpha',
     demoProjectB: envValue('CAPTURE_DEMO_PROJECT_B') ?? 'beta',
-    demoPorts: [5199, 5198]
+    demoPorts: (envValue('CAPTURE_DEMO_PORTS') ?? '5199,5198')
+      .split(',')
+      .map((value) => Number(value.trim()))
+      .filter((value) => Number.isInteger(value) && value > 0),
+    startPort: Number(envValue('CAPTURE_START_PORT') ?? '0'),
+    inspectPorts: (envValue('CAPTURE_INSPECT_PORTS') ?? '')
+      .split(',')
+      .map((value) => Number(value.trim()))
+      .filter((value) => Number.isInteger(value) && value > 0)
   }
   const script = `(async () => {
     const F = ${JSON.stringify(fixtures)}
@@ -643,6 +651,47 @@ async function drive(window: BrowserWindow, target: string): Promise<void> {
       result.selected = [...document.querySelectorAll('.ant-tree-node-selected')].map(
         (el) => el.textContent?.trim()
       )
+    } else if ('${target}' === 'log-info') {
+      result.info = {}
+      for (const port of F.inspectPorts) {
+        const info = await window.localpeek.web.logInfo(port)
+        result.info[port] = {
+          source: info.source,
+          reason: info.reason,
+          path: info.path,
+          lines: info.lines.length,
+          sample: info.lines.slice(-2)
+        }
+      }
+    } else if ('${target}' === 'settings-update-tab') {
+      const settingsButton = [...document.querySelectorAll('.sidebar-footer button')].find(
+        (b) => b.textContent && b.textContent.includes('设置')
+      )
+      if (settingsButton) settingsButton.click()
+      await sleep(800)
+      const nav = [...document.querySelectorAll('.settings-nav-item')].find(
+        (el) => el.textContent && el.textContent.includes('版本与更新')
+      )
+      result.nav = !!nav
+      if (nav) nav.click()
+      await sleep(1500)
+      result.text = document.querySelector('.settings-content')?.textContent?.slice(0, 200)
+    } else if ('${target}' === 'settings-light') {
+      const settingsButton = [...document.querySelectorAll('.sidebar-footer button')].find(
+        (b) => b.textContent && b.textContent.includes('设置')
+      )
+      if (settingsButton) settingsButton.click()
+      await sleep(800)
+      const light = [...document.querySelectorAll('.ant-modal .ant-segmented-item')].find(
+        (el) => el.textContent && el.textContent.trim() === '浅色'
+      )
+      if (light) light.click()
+      await sleep(800)
+    } else if ('${target}' === 'web-start-api') {
+      result.start = await window.localpeek.web.start(F.startPort)
+      await sleep(3000)
+      result.info = await window.localpeek.web.logInfo(F.startPort)
+      result.info.lines = result.info.lines.slice(-5)
     } else if ('${target}' === 'light-sidebar') {
       const settingsButton = [...document.querySelectorAll('.sidebar-footer button')].find(
         (b) => b.textContent && b.textContent.includes('设置')

@@ -1,5 +1,6 @@
 import { resolveProjectName } from '../../shared/settings'
 import type { WebAppInfo, WebAppRole } from '../../shared/types'
+import { isReusableCommand } from '../../shared/webCommand'
 import type { StoredWebHistoryEntry } from '../config'
 
 export const WEB_HISTORY_LIMIT = 50
@@ -79,7 +80,7 @@ export function mergeWebHistory(
       title: entry.title,
       killable: false,
       killBlockedReason: '服务未运行',
-      startable: Boolean(entry.commandLine && entry.cwd),
+      startable: Boolean(isReusableCommand(entry.commandLine) && entry.cwd),
       lastSeenAt: entry.lastSeenAt
     }))
 

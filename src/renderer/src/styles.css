@@ -350,11 +350,201 @@ body {
 .settings-modal .ant-modal-content {
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 64px);
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+  padding: 0;
+}
+
+.settings-modal .ant-modal-header {
+  margin: 0;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.16);
 }
 
 .settings-modal .ant-modal-body {
-  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.settings-modal .ant-modal-close {
+  top: 16px;
+  right: 16px;
+}
+
+.settings-shell {
+  display: flex;
+  height: min(520px, calc(100vh - 200px));
+  min-height: 400px;
+}
+
+.settings-nav {
+  flex: 0 0 188px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 10px;
+  border-right: 1px solid rgba(128, 128, 128, 0.16);
+  background: rgba(128, 128, 128, 0.045);
+}
+
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  cursor: pointer;
+  opacity: 0.72;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    opacity 0.12s ease;
+}
+
+.settings-nav-item:hover {
+  background: rgba(128, 128, 128, 0.1);
+  opacity: 1;
+}
+
+.settings-nav-item.active {
+  background: rgba(91, 141, 239, 0.12);
+  color: #3f7bea;
+  font-weight: 600;
+  opacity: 1;
+}
+
+.theme-dark .settings-nav-item.active {
+  background: rgba(91, 141, 239, 0.22);
+  color: #9dc0ff;
+}
+
+.settings-nav-item .anticon {
+  font-size: 15px;
+}
+
+.settings-nav-dot {
+  width: 6px;
+  height: 6px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: #5b8def;
+}
+
+.settings-nav-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding: 10px 12px 2px;
+  border-top: 1px solid rgba(128, 128, 128, 0.14);
+  color: rgba(128, 128, 128, 0.9);
+  font-size: 10.5px;
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+  padding: 24px 28px 26px;
+  overflow-y: auto;
+}
+
+.settings-content::-webkit-scrollbar {
+  width: 10px;
+}
+
+.settings-content::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 8px;
+  background: rgba(128, 128, 128, 0.28);
+  background-clip: padding-box;
+}
+
+.settings-pane-title {
+  margin: 0 0 4px;
+  font-size: 17px;
+  font-weight: 650;
+}
+
+.settings-pane-sub {
+  margin: 0 0 22px;
+  color: rgba(128, 128, 128, 0.95);
+  font-size: 11.5px;
+  line-height: 1.65;
+}
+
+.settings-history-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(128, 128, 128, 0.16);
+  border-radius: 10px;
+  background: rgba(128, 128, 128, 0.035);
+}
+
+.settings-history-card .settings-hint {
+  margin-top: 4px;
+}
+
+.settings-path-row {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.12);
+}
+
+.settings-path-row:last-child {
+  border-bottom: 0;
+}
+
+.settings-path-label {
+  color: rgba(128, 128, 128, 0.95);
+  font-size: 11.5px;
+}
+
+.settings-path {
+  overflow: hidden;
+  color: rgba(128, 128, 128, 0.95);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .settings-shell {
+    flex-direction: column;
+    height: auto;
+    max-height: calc(100vh - 200px);
+  }
+
+  .settings-nav {
+    flex: none;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.16);
+  }
+
+  .settings-nav-item {
+    flex: none;
+    width: auto;
+  }
+
+  .settings-nav-footer {
+    display: none;
+  }
 }
 
 /* Web 应用：按项目分组的端口列表，替代合并单元格表格 */

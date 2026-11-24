@@ -93,6 +93,17 @@ export function parseLsofFds(output: string): Map<number, string[]> {
   return result
 }
 
+/** 找出与当前端口指向同一个日志文件的其他端口，避免两个面板展示完全相同的输出。 */
+export function sharedLogPorts(
+  path: string,
+  entries: ReadonlyArray<{ port: number; path: string | null }>,
+  currentPort: number
+): number[] {
+  return entries
+    .filter((entry) => entry.port !== currentPort && entry.path === path)
+    .map((entry) => entry.port)
+}
+
 export interface LogTailCallbacks {
   onLines: (lines: string[]) => void
   onError: (error: Error) => void

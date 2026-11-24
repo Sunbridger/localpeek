@@ -256,7 +256,9 @@ function PortRow({
             title={
               record.startable
                 ? '按上次的目录与命令重新启动'
-                : '缺少历史启动命令或工作目录，无法一键启动'
+                : record.commandLine
+                  ? '历史命令来自 reload 子进程，无法直接重启；请先手动启动并重新扫描'
+                  : '缺少历史启动命令或工作目录，无法一键启动'
             }
           >
             <span>

@@ -19,6 +19,7 @@ import {
   type ListeningProcess
 } from './listeners'
 import { mapLimit } from './probe'
+import { parseProcessTable, pickLaunchCommand, type ProcessEntry } from './processTree'
 
 const execFileAsync = promisify(execFile)
 const BODY_LIMIT = 16 * 1024
@@ -195,6 +196,18 @@ async function fetchCommandLines(pids: number[]): Promise<Map<number, string>> {
   return result
 }
 
+async function fetchProcessTable(): Promise<Map<number, ProcessEntry>> {
+  try {
+    const { stdout } = await execFileAsync(psBinary(), ['-axo', 'pid=,ppid=,command='], {
+      timeout: 5000,
+      maxBuffer: 8 * 1024 * 1024
+    })
+    return parseProcessTable(stdout)
+  } catch {
+    return new Map()
+  }
+}
+
 export async function scanWebApps(
   excludePorts: number[] = [],
   settings: AppSettings = DEFAULT_SETTINGS
@@ -223,8 +236,33 @@ export async function scanWebApps(
 
   const detected = probes.filter((item): item is NonNullable<typeof item> => item !== null)
   const pids = [...new Set(detected.flatMap((item) => item.processes.map((p) => p.pid)))]
-  const [fullCommands, cwds] = await Promise.all([fetchCommandLines(pids), fetchCwds(pids)])
+  const [fullCommands, cwds, processTable] = await Promise.all([
+    fetchCommandLines(pids),
+    fetchCwds(pids),
+    fetchProcessTable()
+  ])
   const seenAt = Date.now()
+  const launches = new Map<number, ProcessEntry | undefined>()
+  for (const { port, processes } of detected) {
+    launches.set(
+      port,
+      pickLaunchCommand(
+        processes.map((item) => item.pid),
+        processTable
+      )
+    )
+  }
+  const missingCwdPids = [
+    ...new Set(
+      [...launches.values()]
+        .map((launch) => launch?.pid)
+        .filter((pid): pid is number => Boolean(pid) && !cwds.has(pid as number))
+    )
+  ]
+  const allCwds = new Map(cwds)
+  if (missingCwdPids.length > 0) {
+    for (const [pid, cwd] of await fetchCwds(missingCwdPids)) allCwds.set(pid, cwd)
+  }
 
   return detected
     .map(({ port, processes, probe }) => {
@@ -255,8 +293,14 @@ export async function scanWebApps(
       const primary = details.find((item) => item.killable) ?? details[0]
       const blocked = details.filter((item) => !item.killable)
       const killable = blocked.length === 0
-      const commandLine = primary.commandLine
-      const cwd = primary.cwd ?? details.find((item) => item.cwd)?.cwd
+      // uvicorn --reload 等框架的监听进程可能是 fork 出来的 worker，
+      // 向上找到真正的启动命令，避免用 multiprocessing spawn 命令重启。
+      const launch = launches.get(port)
+      const commandLine = launch?.command ?? primary.commandLine
+      const cwd =
+        (launch ? allCwds.get(launch.pid) : undefined) ??
+        primary.cwd ??
+        details.find((item) => item.cwd)?.cwd
       const identity = detectProject(cwd)
       const projectKey = identity?.key ?? (cwd ? `path:${cwd}` : `port:${port}`)
       const projectAuto = identity?.name

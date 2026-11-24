@@ -60,6 +60,20 @@ describe('mergeWebHistory', () => {
     expect(merged.webApps[0].startable).toBe(false)
   })
 
+  it('marks fork / reload worker commands as not restartable', () => {
+    const merged = mergeWebHistory(
+      [
+        historyEntry(8002, {
+          commandLine:
+            '/repo/.venv/bin/python -c from multiprocessing.spawn import spawn_main; spawn_main(tracker_fd=5, pipe_handle=7) --multiprocessing-fork'
+        })
+      ],
+      [],
+      5000
+    )
+    expect(merged.webApps[0].startable).toBe(false)
+  })
+
   it('refreshes lastSeenAt for services that came back online', () => {
     const merged = mergeWebHistory([historyEntry(5173, { lastSeenAt: 100 })], [onlineApp(5173)], 9000)
     expect(merged.history).toHaveLength(1)

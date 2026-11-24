@@ -38,6 +38,7 @@ import {
 import { lsofBinary, shellBinary } from './platform'
 import { APP_NAME } from '../shared/appInfo'
 import { type AppSettings, sanitizeSettings } from '../shared/settings'
+import { isReusableCommand } from '../shared/webCommand'
 import type { DockerContainer } from './discovery/docker'
 import { isDockerCommand, isSshCommand } from './discovery/listeners'
 import { mapLimit } from './discovery/probe'
@@ -55,7 +56,7 @@ import {
   queryTable
 } from './services/mysql'
 import { keyDetail, openRedis, scanKeys } from './services/redis'
-import { LogTail, MAX_LINES, parseLsofFds, readTail } from './services/webLog'
+import { LogTail, MAX_LINES, parseLsofFds, readTail, sharedLogPorts } from './services/webLog'
 
 export function instanceIdFor(kind: DbKind, host: string, port: number): string {
   return `${kind}://${host}:${port}`
@@ -746,9 +747,14 @@ export class DbManager {
       .map((port) => history.find((entry) => entry.port === port))
       .filter((entry): entry is StoredWebHistoryEntry => Boolean(entry))
     const valid = entries.filter(
-      (entry) => Boolean(entry.commandLine) && Boolean(entry.cwd) && existsSync(entry.cwd!)
+      (entry) =>
+        isReusableCommand(entry.commandLine) && Boolean(entry.cwd) && existsSync(entry.cwd!)
     )
-    if (valid.length === 0) throw new Error('没有可用的历史启动记录（缺少命令或工作目录）')
+    if (valid.length === 0) {
+      throw new Error(
+        '没有可用的历史启动记录（缺少启动命令、工作目录，或记录的是子进程命令）；请先手动启动该服务并重新扫描'
+      )
+    }
 
     const errors: string[] = []
     const spawned: StoredWebHistoryEntry[] = []
@@ -847,8 +853,9 @@ export class DbManager {
     return `该进程不是由 ${APP_NAME} 启动，且输出没有写入文件；可重启以捕获日志`
   }
 
-  async webLogInfo(port: number): Promise<WebLogInfo> {
-    if (!Number.isInteger(port) || port <= 0) throw new Error('端口不合法')
+  private async resolveWebLogPath(
+    port: number
+  ): Promise<{ app: WebAppInfo | undefined; online: boolean; path: string | null }> {
     const app = this.webApps.find((item) => item.port === port)
     const processList = app?.processes ?? []
     const allPids =
@@ -871,6 +878,13 @@ export class DbManager {
     if (online && app && ownPids.length > 0) path = await this.probeLogFile(app, ownPids)
     // 离线时回退到该端口上次启动留下的日志
     if (!path && !online && app && existsSync(expected)) path = expected
+    return { app, online, path }
+  }
+
+  async webLogInfo(port: number): Promise<WebLogInfo> {
+    if (!Number.isInteger(port) || port <= 0) throw new Error('端口不合法')
+    const expected = this.webLogPathFor(port)
+    const { app, online, path } = await this.resolveWebLogPath(port)
 
     if (!path) {
       return {
@@ -878,6 +892,32 @@ export class DbManager {
         reason: this.webLogUnavailableReason(app, online),
         lines: [],
         online
+      }
+    }
+
+    // 多个端口继承同一个 stdout 文件时（如 ./dev.sh > dev.log），
+    // 不能把同一份内容当成两个端口各自的日志。
+    if (path !== expected) {
+      const entries = await Promise.all(
+        this.webApps
+          .filter((item) => item.online && item.port !== port)
+          .map(async (item) => ({
+            port: item.port,
+            path: (await this.resolveWebLogPath(item.port)).path
+          }))
+      )
+      const shared = sharedLogPorts(path, entries, port)
+      // 共用日志时只让端口号最小的面板展示内容，其余端口明确提示，
+      // 避免两个面板看似各有一份日志、实际内容完全相同。
+      if (shared.length > 0 && port !== Math.min(port, ...shared)) {
+        return {
+          source: 'unavailable',
+          reason: `端口 ${port} 与 ${shared
+            .map((item) => `:${item}`)
+            .join('、')} 共用同一个日志文件，无法区分各自输出；可点「重启并捕获输出」生成独立日志`,
+          lines: [],
+          online
+        }
       }
     }
 
