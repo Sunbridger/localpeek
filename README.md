@@ -3,6 +3,9 @@
 [![CI](https://github.com/Sunbridger/localpeek/actions/workflows/ci.yml/badge.svg)](https://github.com/Sunbridger/localpeek/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+> 官网：https://sunbridger.github.io/localpeek/ ·
+> [下载 macOS 版](https://github.com/Sunbridger/localpeek/releases/latest)
+
 LocalPeek 是一个面向本机开发的 macOS 桌面工具：发现并只读浏览本地 Redis / MySQL，
 识别正在运行的 Web 开发服务，查看进程与实时日志。Electron + React + TypeScript + Ant Design。
 
