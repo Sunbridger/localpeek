@@ -1,0 +1,49 @@
+import { contextBridge, ipcRenderer } from 'electron'
+import type { LocalPeekApi, WebLogLinesEvent } from '../shared/types'
+
+const api: LocalPeekApi = {
+  scan: () => ipcRenderer.invoke('localpeek:scan'),
+  settings: () => ipcRenderer.invoke('localpeek:settings'),
+  paths: () => ipcRenderer.invoke('localpeek:paths'),
+  currentInstances: () => ipcRenderer.invoke('localpeek:instances'),
+  testConnection: (input) => ipcRenderer.invoke('localpeek:testConnection', input),
+  addManual: (input) => ipcRenderer.invoke('localpeek:addManual', input),
+  removeManual: (instanceId) => ipcRenderer.invoke('localpeek:removeManual', instanceId),
+  setCredentials: (input) => ipcRenderer.invoke('localpeek:setCredentials', input),
+  mysql: {
+    databases: (instanceId) => ipcRenderer.invoke('localpeek:mysql:databases', instanceId),
+    tables: (instanceId, database) =>
+      ipcRenderer.invoke('localpeek:mysql:tables', instanceId, database),
+    columns: (instanceId, database, table) =>
+      ipcRenderer.invoke('localpeek:mysql:columns', instanceId, database, table),
+    indexes: (instanceId, database, table) =>
+      ipcRenderer.invoke('localpeek:mysql:indexes', instanceId, database, table),
+    query: (input) => ipcRenderer.invoke('localpeek:mysql:query', input)
+  },
+  redis: {
+    selectDb: (instanceId, db) => ipcRenderer.invoke('localpeek:redis:selectDb', instanceId, db),
+    keys: (input) => ipcRenderer.invoke('localpeek:redis:keys', input),
+    keyDetail: (input) => ipcRenderer.invoke('localpeek:redis:keyDetail', input)
+  },
+  web: {
+    scan: () => ipcRenderer.invoke('localpeek:web:scan'),
+    kill: (port, pid) => ipcRenderer.invoke('localpeek:web:kill', port, pid),
+    killMany: (items) => ipcRenderer.invoke('localpeek:web:killMany', items),
+    start: (port) => ipcRenderer.invoke('localpeek:web:start', port),
+    startMany: (ports) => ipcRenderer.invoke('localpeek:web:startMany', ports),
+    clearHistory: () => ipcRenderer.invoke('localpeek:web:clearHistory'),
+    logInfo: (port) => ipcRenderer.invoke('localpeek:web:logInfo', port),
+    followLog: (port) => ipcRenderer.invoke('localpeek:web:logFollow', port),
+    unfollowLog: (port) => ipcRenderer.invoke('localpeek:web:logUnfollow', port),
+    restartForLog: (port) => ipcRenderer.invoke('localpeek:web:restartForLog', port),
+    onLogLines: (callback) => {
+      const handler = (_event: Electron.IpcRendererEvent, payload: WebLogLinesEvent): void =>
+        callback(payload)
+      ipcRenderer.on('localpeek:web:logLines', handler)
+      return () => ipcRenderer.removeListener('localpeek:web:logLines', handler)
+    }
+  },
+  openExternal: (url) => ipcRenderer.invoke('localpeek:openExternal', url)
+}
+
+contextBridge.exposeInMainWorld('localpeek', api)

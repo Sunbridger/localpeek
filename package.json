@@ -1,0 +1,60 @@
+{
+  "name": "localpeek",
+  "version": "0.1.0",
+  "description": "LocalPeek - 发现并浏览本机 Redis / MySQL / Web 应用",
+  "main": "./out/main/index.js",
+  "author": "Sunbridger (https://github.com/Sunbridger)",
+  "license": "MIT",
+  "private": true,
+  "homepage": "https://github.com/Sunbridger/localpeek",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Sunbridger/localpeek.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Sunbridger/localpeek/issues"
+  },
+  "keywords": [
+    "electron",
+    "redis",
+    "mysql",
+    "developer-tools",
+    "local-development",
+    "macos",
+    "react",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
+    "typecheck": "npm run typecheck:node && npm run typecheck:web",
+    "test": "vitest run",
+    "dist": "npm run build && electron-builder --mac --arm64"
+  },
+  "dependencies": {
+    "ioredis": "^6.1.0",
+    "mysql2": "^3.24.6"
+  },
+  "devDependencies": {
+    "@ant-design/icons": "^6.3.4",
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "antd": "^6.7.2",
+    "electron": "^44.11.5",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^6.0.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.1.1"
+  }
+}

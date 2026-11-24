@@ -1,0 +1,10 @@
+export const APP_NAME = 'LocalPeek'
+export const APP_PACKAGE_NAME = 'localpeek'
+export const APP_ID = 'io.github.sunbridger.localpeek'
+export const APP_SUBTITLE = '本机 Redis / MySQL / Web 应用'
+export const REPO_URL = 'https://github.com/Sunbridger/localpeek'
+export const HOMEPAGE_URL = REPO_URL
+export const ISSUES_URL = `${REPO_URL}/issues`
+export const ENV_PREFIX = 'LOCALPEEK'
+export const CONFIG_FILE_NAME = 'localpeek-config.json'
+export const COPYRIGHT = 'Copyright (c) 2026 Sunbridger'
