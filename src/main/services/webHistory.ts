@@ -1,6 +1,6 @@
+import { resolveProjectName } from '../../shared/settings'
 import type { WebAppInfo, WebAppRole } from '../../shared/types'
 import type { StoredWebHistoryEntry } from '../config'
-import { extractProjectName } from '../projectName'
 
 export const WEB_HISTORY_LIMIT = 50
 
@@ -23,16 +23,18 @@ export function mergeWebHistory(
   online: WebAppInfo[],
   seenAt: number,
   limit = WEB_HISTORY_LIMIT,
-  projectRoots?: string[]
+  projectOverrides: Record<string, string> = {}
 ): MergedWebHistory {
   const onlinePorts = new Set(online.map((app) => app.port))
   const byPort = new Map<number, StoredWebHistoryEntry>()
 
   for (const entry of history) {
     if (!isEntryValid(entry)) continue
+    const auto = entry.projectAuto ?? entry.project
     byPort.set(entry.port, {
       ...entry,
-      project: entry.project ?? extractProjectName(entry.commandLine, entry.cwd, projectRoots)
+      project: resolveProjectName(entry.projectKey, auto, projectOverrides),
+      projectAuto: auto
     })
   }
 
@@ -43,7 +45,9 @@ export function mergeWebHistory(
       title: app.title,
       command: app.command,
       commandLine: app.commandLine ?? app.command,
-      project: app.project ?? extractProjectName(app.commandLine, app.cwd, projectRoots),
+      project: app.project,
+      projectAuto: app.projectAuto,
+      projectKey: app.projectKey,
       cwd: app.cwd,
       lastSeenAt: seenAt
     })
@@ -66,7 +70,9 @@ export function mergeWebHistory(
       online: false,
       command: entry.command,
       commandLine: entry.commandLine,
-      project: entry.project ?? extractProjectName(entry.commandLine, entry.cwd, projectRoots),
+      project: entry.project,
+      projectAuto: entry.projectAuto,
+      projectKey: entry.projectKey,
       cwd: entry.cwd,
       url: `http://localhost:${entry.port}/`,
       role: (entry.role ?? 'web') as WebAppRole,

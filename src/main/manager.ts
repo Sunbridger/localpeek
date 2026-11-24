@@ -1,4 +1,5 @@
 import { app } from 'electron'
+import { appVersion } from './appVersion'
 import { execFile, spawn } from 'node:child_process'
 import { closeSync, existsSync, mkdirSync, openSync, statSync, writeSync } from 'node:fs'
 import os from 'node:os'
@@ -133,12 +134,7 @@ export class DbManager {
 
   async updateSettings(patch: Partial<AppSettings>): Promise<AppSettings> {
     const config = loadConfig()
-    const previousRoots = config.settings.projectRoots.join('\u0000')
     config.settings = sanitizeSettings({ ...config.settings, ...patch })
-    if (config.settings.projectRoots.join('\u0000') !== previousRoots) {
-      // 让历史记录在下次扫描时按新的根目录重新推导项目名
-      for (const entry of config.webHistory) entry.project = undefined
-    }
     saveConfig()
     return config.settings
   }
@@ -147,11 +143,12 @@ export class DbManager {
     return this.webApps
   }
 
-  paths(): { userData: string; configFile: string; logsDir: string } {
+  paths(): { userData: string; configFile: string; logsDir: string; version: string } {
     return {
       userData: app.getPath('userData'),
       configFile: configPath(),
-      logsDir: this.logsDir()
+      logsDir: this.logsDir(),
+      version: appVersion()
     }
   }
 
@@ -590,7 +587,7 @@ export class DbManager {
       online,
       Date.now(),
       settings.webHistoryLimit,
-      settings.projectRoots
+      settings.projectOverrides
     )
     config.webHistory = merged.history
     saveConfig()
@@ -832,7 +829,7 @@ export class DbManager {
   }
 
   private webLogUnavailableReason(app: WebAppInfo | undefined, online: boolean): string {
-    if (!app) return '端口记录已失效，请重新检测'
+    if (!app) return '端口记录已失效，请重新扫描'
     if (!online) return '服务未运行，且没有可读取的历史输出文件'
     const processes = app.processes ?? []
     if (

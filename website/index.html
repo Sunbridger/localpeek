@@ -18,7 +18,7 @@
       content="自动发现本机 Redis、MySQL 与 Web 开发服务，只读浏览数据、查看进程与实时日志。macOS 免费开源。"
     />
     <meta property="og:url" content="https://sunbridger.github.io/localpeek/" />
-    <meta property="og:image" content="https://sunbridger.github.io/localpeek/assets/web-logs.png" />
+    <meta property="og:image" content="https://sunbridger.github.io/localpeek/assets/home.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="LocalPeek — 本机开发环境，一眼看全" />
     <meta
@@ -87,7 +87,7 @@
             <div class="hero-actions">
               <a
                 class="btn btn-primary"
-                href="https://github.com/Sunbridger/localpeek/releases/latest/download/LocalPeek-0.1.1-arm64.dmg"
+                href="https://github.com/Sunbridger/localpeek/releases/latest/download/LocalPeek-0.1.2-arm64.dmg"
               >
                 <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
                   <path d="M12 3v11m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
@@ -106,13 +106,13 @@
                 <span class="window-title">LocalPeek — 本地开发面板</span>
               </div>
               <img
-                src="assets/web-logs.png"
-                alt="LocalPeek 的 Web 应用页面，两个并排的实时日志面板"
+                src="assets/home.png"
+                alt="LocalPeek 本机概览：数据库、Web 应用与最近发现"
                 width="1800"
                 height="990"
               />
             </figure>
-            <div class="shot-meta"><span>Web 应用 + 实时日志</span><span>最多 4 个面板</span></div>
+            <div class="shot-meta"><span>本机概览 · 服务与最近发现</span><span>MySQL · Redis · Web</span></div>
           </div>
         </div>
 
@@ -235,22 +235,44 @@
           <article class="feature reveal">
             <div class="feature-copy">
               <p class="feature-tag">Web 应用</p>
-              <h3>端口、进程、日志，在一个页面。</h3>
+              <h3>端口、进程、项目，在一个页面。</h3>
               <p>
-                自动识别本机开发服务与项目名，按项目分组展示端口、角色、页面标题和进程。
-                点「进程」就打开实时日志，再点一次收起。
+                自动识别本机开发服务，项目名从 git 仓库 / package.json 等项目根向上推导。
+                识别不到时显示「未识别项目」，点项目名旁的铅笔即可手动命名或合并。
               </p>
               <ul class="checks">
                 <li>按项目分组，无合并单元格、无横向滚动</li>
-                <li>最多 4 个日志面板，分隔条可拖动</li>
+                <li>项目头支持重命名、合并，覆盖保存在本机</li>
                 <li>菜单栏常驻：关闭窗口后保留当前页面</li>
                 <li>终端启动的服务可「重启并捕获输出」</li>
+                <li>设置里检查更新，自动下载并替换安装</li>
+              </ul>
+            </div>
+            <figure class="shot">
+              <div class="shot-bar" aria-hidden="true"><span></span><span></span><span></span></div>
+              <img src="assets/web-table.png" alt="LocalPeek 按项目分组的 Web 应用列表" width="1800" height="990" loading="lazy" />
+              <figcaption>项目分组 · 重命名 / 合并 · 无横向滚动</figcaption>
+            </figure>
+          </article>
+
+          <article class="feature reverse reveal">
+            <div class="feature-copy">
+              <p class="feature-tag">实时日志</p>
+              <h3>点一下进程，输出就在下面。</h3>
+              <p>
+                每个端口的日志区常驻在底部，最多并排 4 个面板；分隔条可拖动，
+                长行随面板宽度换行，新输出自动跟随到底部。
+              </p>
+              <ul class="checks">
+                <li>点击「进程」展开，再次点击收起</li>
+                <li>最多 4 个面板，各自独立实时跟随</li>
+                <li>终端启动的进程可「重启并捕获输出」</li>
               </ul>
             </div>
             <figure class="shot">
               <div class="shot-bar" aria-hidden="true"><span></span><span></span><span></span></div>
               <img src="assets/web-logs.png" alt="LocalPeek 的 Web 应用页面与两个并排的实时日志面板" width="1800" height="990" loading="lazy" />
-              <figcaption>项目端口 · 进程 · 多面板实时日志</figcaption>
+              <figcaption>多面板实时日志 · 自动跟随最新</figcaption>
             </figure>
           </article>
 
@@ -271,6 +293,82 @@
               <p class="detail-kicker">菜单栏常驻</p>
               <p>红叉只隐藏窗口，当前页面和日志面板不丢；⌘Q 才退出。</p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section menubar" id="menubar">
+        <div class="wrap menubar-grid">
+          <div class="reveal">
+            <p class="section-label">顶部菜单栏</p>
+            <h2>关掉窗口，<br />服务还在。</h2>
+            <p class="section-lead">
+              LocalPeek 常驻 macOS 菜单栏。点菜单栏图标就能看到在线 / 离线数量，
+              快速显示主窗口、重新扫描、打开某个在线服务，或进入设置。
+            </p>
+            <ul class="checks">
+              <li>菜单栏直接查看在线服务数量</li>
+              <li>显示 / 隐藏主窗口，不必回到 Dock</li>
+              <li>红叉只隐藏窗口，当前页面不丢；⌘Q 退出</li>
+            </ul>
+          </div>
+          <div class="menubar-card reveal" aria-label="菜单栏菜单示意">
+            <div class="menubar-card-title">
+              <span class="menubar-eye" aria-hidden="true">◉</span>
+              <span>LocalPeek · 在线 4 · 离线 0</span>
+            </div>
+            <div class="menubar-item">显示主窗口</div>
+            <div class="menubar-item">重新扫描</div>
+            <div class="menubar-item menubar-item-label">在线服务</div>
+            <div class="menubar-item menubar-item-service">
+              localpeek-demo <span>:5198</span>
+            </div>
+            <div class="menubar-item menubar-item-service">
+              localpeek-demo <span>:5199</span>
+            </div>
+            <div class="menubar-item menubar-item-service">
+              electron-my-tool <span>:5173</span>
+            </div>
+            <div class="menubar-divider"></div>
+            <div class="menubar-item">设置…</div>
+            <div class="menubar-item">退出 LocalPeek</div>
+            <p class="menubar-note">菜单栏菜单示意</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section gallery" id="screens">
+        <div class="wrap">
+          <div class="section-head reveal">
+            <p class="section-label">界面一览</p>
+            <h2>更多截图。</h2>
+            <p class="section-lead">点击任意截图放大查看。</p>
+          </div>
+          <div class="gallery-grid">
+            <figure class="gallery-item reveal">
+              <img src="assets/home.png" alt="LocalPeek 本机概览首页" width="1800" height="990" loading="lazy" />
+              <figcaption>本机概览 · 端口卡片与最近发现</figcaption>
+            </figure>
+            <figure class="gallery-item reveal">
+              <img src="assets/web-table.png" alt="LocalPeek 按项目分组的 Web 应用列表" width="1800" height="990" loading="lazy" />
+              <figcaption>Web 应用 · 按项目分组</figcaption>
+            </figure>
+            <figure class="gallery-item reveal">
+              <img src="assets/project-edit.png" alt="LocalPeek 重命名或合并项目对话框" width="1800" height="990" loading="lazy" />
+              <figcaption>项目识别 · 重命名或合并</figcaption>
+            </figure>
+            <figure class="gallery-item reveal">
+              <img src="assets/mysql.png" alt="LocalPeek MySQL 数据浏览与 JSON 详情" width="1800" height="990" loading="lazy" />
+              <figcaption>MySQL · 数据与 JSON 详情</figcaption>
+            </figure>
+            <figure class="gallery-item reveal">
+              <img src="assets/redis.png" alt="LocalPeek Redis 键列表与 JSON 详情" width="1800" height="990" loading="lazy" />
+              <figcaption>Redis · Value 预览与 JSON 详情</figcaption>
+            </figure>
+            <figure class="gallery-item reveal">
+              <img src="assets/web-logs.png" alt="LocalPeek 多面板实时日志" width="1800" height="990" loading="lazy" />
+              <figcaption>实时日志 · 多面板跟随</figcaption>
+            </figure>
           </div>
         </div>
       </section>
@@ -333,7 +431,7 @@
               <div class="step-body">
                 <h3>看数据</h3>
                 <p>
-                  点左侧的数据库实例，再点数据库、点表名，右侧就会显示数据。
+                  点左侧的数据库端口，再点数据库、点表名，右侧就会显示数据。
                   可以排序、翻页、加 WHERE 条件。点击带颜色的长字段，底部会出现完整内容面板。
                 </p>
               </div>
@@ -364,7 +462,7 @@
             <h3>卡住了？先看这里</h3>
             <ul>
               <li><strong>看不到任何服务：</strong>确认服务正在运行，再点右上角「重新扫描」。Docker 和 SSH 转发的端口只展示，不可关闭。</li>
-              <li><strong>数据库连不上：</strong>在实例页手动填写用户名和密码。凭据只保存在本机。</li>
+              <li><strong>数据库连不上：</strong>在数据库页手动填写用户名和密码。凭据只保存在本机。</li>
               <li><strong>日志是空的：</strong>终端启动的进程需要「重启并捕获输出」；Docker / SSH 进程无法读取输出。</li>
               <li><strong>想扫描别的端口：</strong>在配置文件的 <code>settings</code> 里调整端口区间，重启应用后生效。详见仓库 README。</li>
             </ul>
@@ -415,14 +513,14 @@
           </div>
           <div class="config-copy reveal">
             <p>
-              项目根目录可以直接在应用的「设置 → 项目识别」里改；扫描范围和 Redis 数据库数量
-              仍然通过配置文件调整，重启生效。
+              项目名按 git 仓库 / package.json 自动识别；识别不到时在项目头手动命名或合并。
+              扫描范围、Redis 数据库数量和历史条数通过配置文件调整，重启生效。
             </p>
             <ul>
-              <li><code>项目根目录</code> 决定项目名从哪一级目录取，保存后自动重新扫描</li>
               <li><code>settings.webPortRanges</code> 扩大或收窄 Web 服务扫描范围</li>
               <li><code>settings.redisDbs</code> 适配自定义的 Redis 数据库数量</li>
               <li><code>settings.webHistoryLimit</code> 控制离线端口历史保留条数</li>
+              <li>项目重命名 / 合并覆盖保存在 <code>settings.projectOverrides</code></li>
             </ul>
             <a class="text-link" href="https://github.com/Sunbridger/localpeek#%E9%85%8D%E7%BD%AE">查看配置示例 <span aria-hidden="true">↗</span></a>
           </div>
@@ -486,7 +584,7 @@
             <div class="hero-actions center">
               <a
                 class="btn btn-primary"
-                href="https://github.com/Sunbridger/localpeek/releases/latest/download/LocalPeek-0.1.1-arm64.dmg"
+                href="https://github.com/Sunbridger/localpeek/releases/latest/download/LocalPeek-0.1.2-arm64.dmg"
               >
                 <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
                   <path d="M12 3v11m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
@@ -495,7 +593,7 @@
               </a>
               <a class="btn btn-ghost" href="https://github.com/Sunbridger/localpeek">在 GitHub 查看</a>
             </div>
-            <p class="fine">v0.1.1 · 未签名构建 · 首次打开请右键 → 打开 · 仅 Apple Silicon</p>
+            <p class="fine">v0.1.2 · 未签名构建 · 首次打开请右键 → 打开 · 仅 Apple Silicon</p>
           </div>
         </div>
       </section>
@@ -520,6 +618,12 @@
         <p>Built with Electron, React and TypeScript. LocalPeek 是独立的开源项目。</p>
       </div>
     </footer>
+
+    <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="查看截图" hidden>
+      <button class="lightbox-close" type="button" aria-label="关闭截图">×</button>
+      <img class="lightbox-image" id="lightbox-image" alt="" />
+      <p class="lightbox-caption" id="lightbox-caption"></p>
+    </div>
 
     <script src="script.js"></script>
   </body>

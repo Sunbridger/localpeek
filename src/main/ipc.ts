@@ -9,6 +9,12 @@ import type {
   WebLogLinesEvent
 } from '../shared/types'
 import type { DbManager } from './manager'
+import {
+  checkForUpdate,
+  downloadUpdate,
+  installUpdate,
+  openDownloadedUpdate
+} from './updater'
 
 export function registerIpc(manager: DbManager): void {
   const logSubscriptions = new Map<number, Map<number, (lines: string[]) => void>>()
@@ -26,6 +32,16 @@ export function registerIpc(manager: DbManager): void {
     manager.updateSettings(patch)
   )
   ipcMain.handle('localpeek:paths', () => manager.paths())
+  ipcMain.handle('localpeek:update:check', () => checkForUpdate())
+  ipcMain.handle('localpeek:update:download', (event) =>
+    downloadUpdate((progress) => {
+      if (!event.sender.isDestroyed()) {
+        event.sender.send('localpeek:update:progress', progress)
+      }
+    })
+  )
+  ipcMain.handle('localpeek:update:install', () => installUpdate())
+  ipcMain.handle('localpeek:update:open', () => openDownloadedUpdate())
   ipcMain.handle('localpeek:instances', () => manager.currentInstances())
   ipcMain.handle('localpeek:testConnection', (_event, input: ManualConnectionInput) =>
     manager.testConnection(input)

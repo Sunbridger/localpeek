@@ -1,11 +1,24 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { LocalPeekApi, ScanResult, WebLogLinesEvent } from '../shared/types'
+import type { UpdateProgress } from '../shared/update'
 
 const api: LocalPeekApi = {
   scan: () => ipcRenderer.invoke('localpeek:scan'),
   settings: () => ipcRenderer.invoke('localpeek:settings'),
   updateSettings: (patch) => ipcRenderer.invoke('localpeek:settings:update', patch),
   paths: () => ipcRenderer.invoke('localpeek:paths'),
+  updates: {
+    check: () => ipcRenderer.invoke('localpeek:update:check'),
+    download: () => ipcRenderer.invoke('localpeek:update:download'),
+    install: () => ipcRenderer.invoke('localpeek:update:install'),
+    openDownloaded: () => ipcRenderer.invoke('localpeek:update:open'),
+    onProgress: (callback) => {
+      const handler = (_event: Electron.IpcRendererEvent, progress: UpdateProgress): void =>
+        callback(progress)
+      ipcRenderer.on('localpeek:update:progress', handler)
+      return () => ipcRenderer.removeListener('localpeek:update:progress', handler)
+    }
+  },
   onNavigate: (callback) => {
     const handler = (_event: Electron.IpcRendererEvent, port: number): void => callback(port)
     ipcRenderer.on('localpeek:navigate', handler)

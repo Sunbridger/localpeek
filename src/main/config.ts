@@ -35,6 +35,8 @@ export interface StoredWebHistoryEntry {
   command: string
   commandLine: string
   project?: string
+  projectAuto?: string
+  projectKey?: string
   cwd?: string
   lastSeenAt: number
 }

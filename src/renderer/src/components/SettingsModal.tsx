@@ -1,12 +1,29 @@
 import { useEffect, useState } from 'react'
-import { App, Button, Divider, Input, Modal, Popconfirm, Segmented } from 'antd'
-import {
-  parseProjectRootsInput,
-  type AppSettings
-} from '../../../shared/settings'
+import { App, Button, Divider, Modal, Popconfirm, Progress, Segmented } from 'antd'
+import { SyncOutlined } from '@ant-design/icons'
+import type { AppSettings } from '../../../shared/settings'
 import type { AppPaths, ThemeMode, WebAppInfo } from '../../../shared/types'
+import type {
+  UpdateCheckResult,
+  UpdateDownloadResult,
+  UpdateProgress
+} from '../../../shared/update'
 import { api } from '../api'
 import { cleanError } from '../utils'
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(0, Math.round(bytes / 1024))} KB`
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+function plainReleaseNotes(markdown: string): string {
+  return markdown
+    .replace(/^#{1,6}\s*/gm, '')
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/\[(.+?)\]\((.+?)\)/g, '$1')
+    .trim()
+}
 
 interface SettingsModalProps {
   open: boolean
@@ -14,7 +31,6 @@ interface SettingsModalProps {
   onThemeModeChange: (mode: ThemeMode) => void
   onClose: () => void
   onWebAppsUpdated: (apps: WebAppInfo[]) => void
-  onRescan: () => Promise<void>
 }
 
 export default function SettingsModal({
@@ -22,43 +38,84 @@ export default function SettingsModal({
   themeMode,
   onThemeModeChange,
   onClose,
-  onWebAppsUpdated,
-  onRescan
+  onWebAppsUpdated
 }: SettingsModalProps) {
-  const { message } = App.useApp()
+  const { message, modal } = App.useApp()
   const [paths, setPaths] = useState<AppPaths | null>(null)
   const [settings, setSettings] = useState<AppSettings | null>(null)
-  const [rootsInput, setRootsInput] = useState('')
-  const [savingRoots, setSavingRoots] = useState(false)
+  const [update, setUpdate] = useState<UpdateCheckResult | null>(null)
+  const [updateError, setUpdateError] = useState<string | null>(null)
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
+  const [checkedUpdate, setCheckedUpdate] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const [downloaded, setDownloaded] = useState<UpdateDownloadResult | null>(null)
+  const [progress, setProgress] = useState<UpdateProgress | null>(null)
+  const [installing, setInstalling] = useState(false)
+
+  const checkUpdate = async (manual: boolean): Promise<void> => {
+    setCheckingUpdate(true)
+    if (manual) setUpdateError(null)
+    try {
+      const result = await api.updates.check()
+      setUpdate(result)
+      setCheckedUpdate(true)
+      setDownloaded((previous) =>
+        previous && previous.version === result.latestVersion ? previous : null
+      )
+      if (manual && !result.hasUpdate) message.success('当前已是最新版本')
+    } catch (error) {
+      if (manual) setUpdateError(cleanError(error))
+    } finally {
+      setCheckingUpdate(false)
+    }
+  }
 
   useEffect(() => {
     if (!open) return
+    setCheckedUpdate(false)
+    setUpdateError(null)
     Promise.all([api.paths(), api.settings()])
       .then(([nextPaths, nextSettings]) => {
         setPaths(nextPaths)
         setSettings(nextSettings)
-        setRootsInput(nextSettings.projectRoots.join(', '))
       })
       .catch(() => {})
+    void checkUpdate(false)
+    return api.updates.onProgress((next) => setProgress(next))
   }, [open])
 
-  const saveRoots = async (): Promise<void> => {
-    const roots = parseProjectRootsInput(rootsInput)
-    if (roots.length === 0) {
-      message.error('至少填写一个项目根目录')
-      return
-    }
-    setSavingRoots(true)
+  const install = async (): Promise<void> => {
+    setInstalling(true)
     try {
-      const next = await api.updateSettings({ projectRoots: roots })
-      setSettings(next)
-      setRootsInput(next.projectRoots.join(', '))
-      message.success('项目根目录已保存')
-      await onRescan()
+      await api.updates.install()
+    } catch (error) {
+      setInstalling(false)
+      message.error(cleanError(error))
+    }
+  }
+
+  const downloadUpdate = async (): Promise<void> => {
+    setDownloading(true)
+    setProgress({ phase: 'downloading', received: 0, total: update?.asset?.size ?? null })
+    try {
+      const result = await api.updates.download()
+      setDownloaded(result)
+      if (result.canAutoInstall) {
+        modal.confirm({
+          title: `v${result.version} 已下载`,
+          content: '应用会退出，替换为新版本后自动重启。现在安装吗？',
+          okText: '立即安装',
+          cancelText: '稍后',
+          onOk: () => install()
+        })
+      } else {
+        message.success('安装包已打开，请将 LocalPeek 拖入 Applications 完成更新')
+      }
     } catch (error) {
       message.error(cleanError(error))
     } finally {
-      setSavingRoots(false)
+      setDownloading(false)
+      setProgress(null)
     }
   }
 
@@ -102,22 +159,101 @@ export default function SettingsModal({
       <Divider />
 
       <div className="settings-section">
-        <div className="settings-label">项目识别</div>
-        <div className="settings-inline">
-          <Input
-            value={rootsInput}
-            onChange={(event) => setRootsInput(event.target.value)}
-            placeholder="mycode, code"
-            onPressEnter={saveRoots}
-          />
-          <Button size="small" type="primary" loading={savingRoots} onClick={saveRoots}>
-            保存
+        <div className="settings-label">版本与更新</div>
+        <div className="settings-update-row">
+          <span>
+            当前版本 <span className="mono">v{paths?.version ?? '…'}</span>
+          </span>
+          <Button
+            size="small"
+            icon={<SyncOutlined />}
+            loading={checkingUpdate}
+            onClick={() => void checkUpdate(true)}
+          >
+            检查更新
           </Button>
         </div>
-        <div className="settings-hint">
-          项目名会从 /&lt;根目录&gt;/&lt;项目&gt;/ 中提取，例如 /mycode/demo/ → demo。
-          多个用逗号分隔；保存后会重新扫描。
-        </div>
+
+        {checkedUpdate && update && !update.hasUpdate && !checkingUpdate ? (
+          <div className="settings-hint">当前已是最新版本。</div>
+        ) : null}
+
+        {update?.hasUpdate ? (
+          <div className="settings-update-card">
+            <div className="settings-update-title">
+              发现新版本 <span className="mono">v{update.latestVersion}</span>
+              {update.publishedAt ? (
+                <span className="settings-update-date">
+                  {new Date(update.publishedAt).toLocaleDateString('zh-CN')}
+                </span>
+              ) : null}
+            </div>
+            {update.releaseNotes ? (
+              <div className="settings-update-notes">{plainReleaseNotes(update.releaseNotes)}</div>
+            ) : null}
+            {progress ? (
+              <div className="settings-update-progress">
+                <Progress
+                  percent={
+                    progress.total
+                      ? Math.min(100, Math.round((progress.received / progress.total) * 100))
+                      : 0
+                  }
+                  size="small"
+                  showInfo={false}
+                  status="active"
+                />
+                <span>
+                  {progress.phase === 'preparing'
+                    ? '正在准备安装包…'
+                    : `正在下载 ${formatBytes(progress.received)}${
+                        progress.total ? ` / ${formatBytes(progress.total)}` : ''
+                      }`}
+                </span>
+              </div>
+            ) : null}
+            <div className="settings-update-actions">
+              {downloaded?.canAutoInstall ? (
+                <Button type="primary" size="small" loading={installing} onClick={() => void install()}>
+                  重启并安装
+                </Button>
+              ) : (
+                <Button
+                  type="primary"
+                  size="small"
+                  loading={downloading}
+                  disabled={!update.asset}
+                  onClick={() => void downloadUpdate()}
+                >
+                  {downloading ? '下载中…' : '下载并安装'}
+                </Button>
+              )}
+              {downloaded?.canAutoInstall ? (
+                <Button
+                  size="small"
+                  onClick={() => {
+                    void api.updates.openDownloaded().catch((error) => {
+                      message.error(cleanError(error))
+                    })
+                  }}
+                >
+                  打开安装包
+                </Button>
+              ) : null}
+              <Button size="small" onClick={() => void api.openExternal(update.releaseUrl)}>
+                发布说明
+              </Button>
+            </div>
+            <div className="settings-hint">
+              更新包来自 GitHub Releases。安装时会退出并替换当前应用，配置与凭据不受影响。
+            </div>
+          </div>
+        ) : null}
+
+        {updateError ? <div className="settings-hint">{updateError}</div> : null}
+        {update?.hasUpdate && !update.asset ? (
+          <div className="settings-hint">该版本没有可用的 macOS arm64 安装包。</div>
+        ) : null}
       </div>
 
       <Divider />

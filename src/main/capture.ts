@@ -47,6 +47,8 @@ async function drive(window: BrowserWindow, target: string): Promise<void> {
     demoTable: envValue('CAPTURE_DEMO_TABLE') ?? 'customers',
     demoPattern: envValue('CAPTURE_DEMO_REDIS_PATTERN') ?? 'localpeek:demo:*',
     demoProject: envValue('CAPTURE_DEMO_PROJECT') ?? 'localpeek-demo',
+    demoProjectA: envValue('CAPTURE_DEMO_PROJECT_A') ?? 'alpha',
+    demoProjectB: envValue('CAPTURE_DEMO_PROJECT_B') ?? 'beta',
     demoPorts: [5199, 5198]
   }
   const script = `(async () => {
@@ -615,6 +617,146 @@ async function drive(window: BrowserWindow, target: string): Promise<void> {
       result.segmented = [...document.querySelectorAll('.redis-detail .ant-segmented-item-selected')].map((el) => el.textContent).join(',')
       hideSidebar()
       await sleep(600)
+    } else if ('${target}' === 'home-demo') {
+      const redact = () => {
+        document.querySelectorAll('.tree-label, .recent-label').forEach((el) => {
+          const text = el.textContent || ''
+          if (!text) return
+          if (/redis/i.test(text)) el.textContent = 'Demo Redis'
+          else if (/mysql/i.test(text)) el.textContent = 'Demo MySQL'
+        })
+      }
+      redact()
+      setInterval(redact, 150)
+      await sleep(800)
+    } else if ('${target}' === 'ui-sidebar') {
+      clickGroup('Redis')
+      await sleep(600)
+      clickGroup('Web 应用')
+      await sleep(600)
+      result.port = clickWebPort(':5198')
+      await sleep(1200)
+      result.groups = [...document.querySelectorAll('.tree-group')].map((el) => ({
+        text: el.textContent?.trim(),
+        background: getComputedStyle(el).backgroundColor
+      }))
+      result.selected = [...document.querySelectorAll('.ant-tree-node-selected')].map(
+        (el) => el.textContent?.trim()
+      )
+    } else if ('${target}' === 'light-sidebar') {
+      const settingsButton = [...document.querySelectorAll('.sidebar-footer button')].find(
+        (b) => b.textContent && b.textContent.includes('设置')
+      )
+      if (settingsButton) settingsButton.click()
+      await sleep(700)
+      const light = [...document.querySelectorAll('.ant-modal .ant-segmented-item')].find(
+        (el) => el.textContent && el.textContent.trim() === '浅色'
+      )
+      if (light) light.click()
+      await sleep(600)
+      const close = document.querySelector('.ant-modal-close')
+      if (close) close.click()
+      await sleep(600)
+      clickGroup('MySQL')
+      await sleep(500)
+    } else if ('${target}' === 'web-table') {
+      try {
+        localStorage.removeItem('localpeek.webLogPorts.v1')
+        localStorage.removeItem('localpeek.webLogPort.v1')
+      } catch (error) {}
+      clickGroup('Web 应用')
+      await sleep(1000)
+      clickWebPort()
+      await sleep(3200)
+      const search = document.querySelector('.pane-toolbar input')
+      if (search) setInputValue(search, F.demoProject)
+      await sleep(1500)
+      result.rows = [...document.querySelectorAll('.content .port-row')].map((row) =>
+        row.textContent?.slice(0, 80)
+      )
+      const redactUser = () => {
+        document.querySelectorAll('.web-process .muted').forEach((el) => {
+          el.textContent = (el.textContent || '').replace(/sunbridger/g, 'demo')
+        })
+      }
+      redactUser()
+      setInterval(redactUser, 100)
+      hideSidebar()
+      await sleep(600)
+    } else if ('${target}' === 'project-modal') {
+      try {
+        localStorage.removeItem('localpeek.webLogPorts.v1')
+        localStorage.removeItem('localpeek.webLogPort.v1')
+      } catch (error) {}
+      clickGroup('Web 应用')
+      await sleep(1000)
+      clickWebPort()
+      await sleep(3200)
+      const search = document.querySelector('.pane-toolbar input')
+      if (search) setInputValue(search, F.demoProject)
+      await sleep(1500)
+      const findProject = (name) =>
+        [...document.querySelectorAll('.project-block')].find(
+          (el) => el.querySelector('.project-name')?.textContent?.trim() === name
+        )
+      result.project = !!findProject(F.demoProject)
+      const edit = findProject(F.demoProject)?.querySelector('.project-edit')
+      result.edit = !!edit
+      if (edit) edit.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await sleep(800)
+      result.modal = !!document.querySelector('.project-edit-body')
+      const redactUser = () => {
+        document.querySelectorAll('.web-process .muted').forEach((el) => {
+          el.textContent = (el.textContent || '').replace(/sunbridger/g, 'demo')
+        })
+      }
+      redactUser()
+      setInterval(redactUser, 100)
+      hideSidebar()
+      await sleep(600)
+    } else if ('${target}' === 'project-merge') {
+      try {
+        localStorage.removeItem('localpeek.webLogPorts.v1')
+        localStorage.removeItem('localpeek.webLogPort.v1')
+      } catch (error) {}
+      clickGroup('Web 应用')
+      await sleep(1000)
+      clickWebPort()
+      await sleep(3200)
+      const findProject = (name) =>
+        [...document.querySelectorAll('.project-block')].find(
+          (el) => el.querySelector('.project-name')?.textContent?.trim() === name
+        )
+      const blocks = () =>
+        [...document.querySelectorAll('.project-block')].map((el) => ({
+          name: el.querySelector('.project-name')?.textContent?.trim(),
+          count: el.querySelectorAll('.port-row').length
+        }))
+      result.before = blocks()
+      const edit = findProject(F.demoProjectA)?.querySelector('.project-edit')
+      result.edit = !!edit
+      if (edit) edit.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await sleep(700)
+      const input = document.querySelector('.project-edit-body input')
+      if (input) setInputValue(input, F.demoProjectB)
+      await sleep(300)
+      const save = document.querySelector('.ant-modal-footer .ant-btn-primary')
+      result.save = !!save
+      if (save) save.click()
+      await sleep(4200)
+      result.afterMerge = blocks()
+      const beta = findProject(F.demoProjectB)
+      const resetEdit = beta?.querySelector('.project-edit')
+      result.mergedCount = beta?.querySelectorAll('.port-row').length
+      if (resetEdit) resetEdit.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+      await sleep(700)
+      const reset = [...document.querySelectorAll('.project-edit-body button')].find((button) =>
+        button.textContent?.includes('恢复自动名称')
+      )
+      result.resetButton = !!reset
+      if (reset) reset.click()
+      await sleep(4200)
+      result.afterReset = blocks()
     } else if ('${target}' === 'readme-web') {
       try {
         localStorage.removeItem('localpeek.webLogPorts.v1')
@@ -624,7 +766,7 @@ async function drive(window: BrowserWindow, target: string): Promise<void> {
       await sleep(1000)
       clickWebPort()
       await sleep(3000)
-      const search = document.querySelector('.web-toolbar input')
+      const search = document.querySelector('.pane-toolbar input')
       if (search) setInputValue(search, F.demoProject)
       await sleep(1500)
       const findRow = (port) =>

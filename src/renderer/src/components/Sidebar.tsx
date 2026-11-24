@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Tooltip, Tree, theme } from 'antd'
+import { Tooltip, Tree } from 'antd'
 import type { TreeDataNode } from 'antd'
 import {
   DatabaseOutlined,
@@ -83,7 +83,6 @@ export default function Sidebar({
 }: SidebarProps) {
   const [childrenMap, setChildrenMap] = useState<Record<string, TreeDataNode[]>>({})
   const loadingRef = useRef(new Set<string>())
-  const { token } = theme.useToken()
 
   const instanceById = useMemo(() => {
     const map = new Map<string, InstanceMeta>()
@@ -116,13 +115,15 @@ export default function Sidebar({
       icon: React.ReactNode
     ) => {
       const expanded = expandedKeys.includes(groupKey)
+      const kindClass =
+        groupKey === 'group|mysql'
+          ? 'tree-group-mysql'
+          : groupKey === 'group|redis'
+            ? 'tree-group-redis'
+            : 'tree-group-web'
       return (
         <span
-          className={`tree-group${expanded ? ' tree-group-expanded' : ''}`}
-          style={{
-            color: expanded ? token.colorPrimary : token.colorText,
-            background: expanded ? token.colorPrimaryBg : 'transparent'
-          }}
+          className={`tree-group ${kindClass}${expanded ? ' tree-group-expanded' : ''}`}
           role="button"
           aria-expanded={expanded}
           onClick={(event) => {
@@ -130,22 +131,9 @@ export default function Sidebar({
             onToggleGroup(groupKey)
           }}
         >
-          <span
-            className="tree-group-icon"
-            style={{ color: expanded ? token.colorPrimary : token.colorTextSecondary }}
-          >
-            {icon}
-          </span>
+          <span className="tree-group-icon">{icon}</span>
           <span className="tree-group-label">{label}</span>
-          <span
-            className="tree-count"
-            style={{
-              background: expanded ? token.colorPrimaryBgHover : token.colorFillSecondary,
-              color: expanded ? token.colorPrimary : token.colorTextSecondary
-            }}
-          >
-            {count}
-          </span>
+          <span className="tree-count">{count}</span>
         </span>
       )
     }
@@ -228,7 +216,7 @@ export default function Sidebar({
 
     return [...databaseGroups, webGroup]
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instances, childrenMap, webApps, onToggleGroup, expandedKeys, token])
+  }, [instances, childrenMap, webApps, onToggleGroup, expandedKeys])
 
   const databaseNode = (
     instanceId: string,

@@ -84,14 +84,28 @@ describe('mergeWebHistory', () => {
     expect(merged.history).toHaveLength(0)
   })
 
-  it('derives and keeps the project name for history entries', () => {
+  it('keeps stored project names for history entries', () => {
     const entry = historyEntry(3000, {
-      commandLine: 'node /Users/me/mycode/shop/frontend/node_modules/.bin/vite',
-      cwd: '/Users/me/mycode/shop/frontend'
+      project: 'shop',
+      projectAuto: 'shop',
+      projectKey: 'repo:/tmp/shop'
     })
     const merged = mergeWebHistory([entry], [], 5000)
     expect(merged.history[0].project).toBe('shop')
     expect(merged.webApps[0].project).toBe('shop')
+  })
+
+  it('applies project overrides to offline history', () => {
+    const entry = historyEntry(3000, {
+      project: 'alpha',
+      projectAuto: 'alpha',
+      projectKey: 'repo:/tmp/alpha'
+    })
+    const merged = mergeWebHistory([entry], [], 5000, 50, {
+      'repo:/tmp/alpha': 'beta'
+    })
+    expect(merged.history[0].project).toBe('beta')
+    expect(merged.webApps[0].project).toBe('beta')
   })
 
   it('orders online services before offline history', () => {

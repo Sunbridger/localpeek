@@ -1,4 +1,20 @@
-import { DEFAULT_SETTINGS } from '../shared/settings'
+import { existsSync, realpathSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { basename, dirname, join } from 'node:path'
+
+const REPO_MARKERS = ['.git', '.hg']
+const PACKAGE_MARKERS = [
+  'package.json',
+  'pyproject.toml',
+  'go.mod',
+  'Cargo.toml',
+  'composer.json',
+  'pom.xml',
+  'build.gradle',
+  'build.gradle.kts',
+  'mix.exs',
+  'Gemfile'
+]
 
 const GENERIC_DIRS = new Set([
   'frontend',
@@ -14,10 +30,19 @@ const GENERIC_DIRS = new Set([
   'node_modules'
 ])
 
-export const PROJECT_ROOTS = DEFAULT_SETTINGS.projectRoots
+export interface ProjectIdentity {
+  key: string
+  name: string
+  path?: string
+  source: 'repo' | 'package'
+}
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+function safeRealpath(value: string): string {
+  try {
+    return realpathSync(value)
+  } catch {
+    return value
+  }
 }
 
 export function normalizeProjectName(value: string | undefined): string | undefined {
@@ -26,38 +51,58 @@ export function normalizeProjectName(value: string | undefined): string | undefi
   return cleaned.length > 0 ? cleaned : undefined
 }
 
-/**
- * 从命令行或工作目录中解析项目名：
- * - 优先匹配 /<projectRoot>/<project>/
- * - 其次取 cwd 中跳过 frontend/backend 等通用目录后的最后一级
- */
-export function extractProjectName(
-  commandLine?: string,
-  cwd?: string,
-  projectRoots: string[] = PROJECT_ROOTS
-): string | undefined {
-  const sources = [commandLine, cwd].filter(
-    (value): value is string => typeof value === 'string' && value.length > 0
-  )
-  const roots = projectRoots.filter((root) => typeof root === 'string' && root.length > 0)
-  const pattern =
-    roots.length > 0
-      ? new RegExp(`/(?:${roots.map(escapeRegExp).join('|')})/([^/\\s"']+)`)
-      : null
-
-  for (const source of sources) {
-    const match = pattern?.exec(source)
-    const name = normalizeProjectName(match?.[1])
-    if (name) return name
+function parentProjectName(start: string): string | undefined {
+  const home = safeRealpath(homedir())
+  let dir = start
+  for (let depth = 0; depth < 6; depth++) {
+    if (dir === home || dir === '/' || dir.length === 0) return undefined
+    const name = normalizeProjectName(basename(dir))
+    if (name && !GENERIC_DIRS.has(name.toLowerCase())) return name
+    const parent = dirname(dir)
+    if (parent === dir) break
+    dir = parent
   }
-
-  if (cwd) {
-    const parts = cwd.split('/').filter(Boolean)
-    let index = parts.length - 1
-    while (index >= 0 && GENERIC_DIRS.has(parts[index].toLowerCase())) index--
-    const fallback = index >= 0 ? normalizeProjectName(parts[index]) : undefined
-    if (fallback) return fallback
-  }
-
   return undefined
+}
+
+/**
+ * 从进程 cwd 向上找仓库根（.git/.hg）或包根（package.json 等）。
+ * 仓库根优先，保证 monorepo 内多个服务归到同一个项目；
+ * 非 git 项目若包目录是 frontend/backend 这类通用名，则使用父目录名。
+ * 没有任何项目标记时返回 undefined，由用户手工命名。
+ */
+export function detectProject(cwd?: string): ProjectIdentity | undefined {
+  if (!cwd || !existsSync(cwd)) return undefined
+
+  let dir = safeRealpath(cwd)
+  let packageRoot: string | undefined
+
+  for (let depth = 0; depth < 12; depth++) {
+    if (REPO_MARKERS.some((marker) => existsSync(join(dir, marker)))) {
+      const name = normalizeProjectName(basename(dir))
+      if (name) return { key: `repo:${dir}`, name, path: dir, source: 'repo' }
+    }
+    if (!packageRoot && PACKAGE_MARKERS.some((marker) => existsSync(join(dir, marker)))) {
+      packageRoot = dir
+    }
+    const parent = dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+
+  if (!packageRoot) return undefined
+
+  const base = normalizeProjectName(basename(packageRoot))
+  const name =
+    base && !GENERIC_DIRS.has(base.toLowerCase())
+      ? base
+      : parentProjectName(dirname(packageRoot)) ?? base
+  if (!name) return undefined
+
+  return {
+    key: `package:${packageRoot}`,
+    name,
+    path: packageRoot,
+    source: 'package'
+  }
 }

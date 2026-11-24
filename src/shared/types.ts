@@ -1,4 +1,9 @@
 import type { AppSettings } from './settings'
+import type {
+  UpdateCheckResult,
+  UpdateDownloadResult,
+  UpdateProgress
+} from './update'
 
 export type DbKind = 'redis' | 'mysql'
 
@@ -52,8 +57,12 @@ export interface WebAppInfo {
   user?: string
   command: string
   commandLine?: string
-  /** 解析出的项目名（/mycode/<project>/ 或 /code/<project>/） */
+  /** 解析并应用用户覆盖后的项目名 */
   project?: string
+  /** 自动识别出的项目名（不含重命名 / 合并覆盖） */
+  projectAuto?: string
+  /** 自动识别出的项目键，用于保存重命名 / 合并覆盖 */
+  projectKey?: string
   /** 进程工作目录，用于一键重启 */
   cwd?: string
   url: string
@@ -214,6 +223,7 @@ export interface AppPaths {
   userData: string
   configFile: string
   logsDir: string
+  version: string
 }
 
 export interface LocalPeekApi {
@@ -221,6 +231,13 @@ export interface LocalPeekApi {
   settings: () => Promise<AppSettings>
   updateSettings: (patch: Partial<AppSettings>) => Promise<AppSettings>
   paths: () => Promise<AppPaths>
+  updates: {
+    check: () => Promise<UpdateCheckResult>
+    download: () => Promise<UpdateDownloadResult>
+    install: () => Promise<void>
+    openDownloaded: () => Promise<void>
+    onProgress: (callback: (progress: UpdateProgress) => void) => () => void
+  }
   onNavigate: (callback: (port: number) => void) => () => void
   onOpenSettings: (callback: () => void) => () => void
   onScanResult: (callback: (result: ScanResult) => void) => () => void

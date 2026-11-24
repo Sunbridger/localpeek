@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { App, Button, Empty, Input, Popconfirm, Splitter, Tag, Tooltip } from 'antd'
+import { App, Button, Empty, Input, Modal, Popconfirm, Splitter, Tag, Tooltip } from 'antd'
 import {
+  EditOutlined,
   LinkOutlined,
   PlayCircleOutlined,
-  ReloadOutlined,
   SearchOutlined,
   StopOutlined
 } from '@ant-design/icons'
@@ -297,12 +297,19 @@ export default function WebAppsPane({
   onWebAppsUpdated
 }: WebAppsPaneProps) {
   const { message } = App.useApp()
-  const [scanning, setScanning] = useState(false)
   const [killingPort, setKillingPort] = useState<number | null>(null)
   const [startingPort, setStartingPort] = useState<number | null>(null)
   const [search, setSearch] = useState('')
   const [batch, setBatch] = useState<{ name: string; action: 'start' | 'stop' } | null>(null)
   const [logPorts, setLogPorts] = useState<number[]>(readStoredLogPorts)
+  const [projectEdit, setProjectEdit] = useState<{
+    name: string
+    keys: string[]
+    autoName: string
+    overridden: boolean
+  } | null>(null)
+  const [projectNameInput, setProjectNameInput] = useState('')
+  const [savingProject, setSavingProject] = useState(false)
 
   useEffect(() => {
     try {
@@ -393,7 +400,6 @@ export default function WebAppsPane({
   }, [filtered, projects])
 
   const refresh = async (): Promise<void> => {
-    setScanning(true)
     try {
       const apps = await api.web.scan()
       onWebAppsUpdated(apps)
@@ -401,8 +407,6 @@ export default function WebAppsPane({
       message.success(`扫描完成，在线 ${online} 个 · 历史 ${apps.length} 个`)
     } catch (error) {
       message.error(cleanError(error))
-    } finally {
-      setScanning(false)
     }
   }
 
@@ -485,6 +489,66 @@ export default function WebAppsPane({
     }
   }
 
+  const openProjectEdit = (group: ProjectGroup): void => {
+    const keys = [
+      ...new Set(
+        group.entries
+          .map((entry) => entry.projectKey)
+          .filter((key): key is string => Boolean(key))
+      )
+    ]
+    if (keys.length === 0) {
+      message.info('该分组没有可保存的项目标识')
+      return
+    }
+    const autoName =
+      group.entries.find((entry) => entry.projectAuto)?.projectAuto ?? group.name
+    const overridden = group.entries.some(
+      (entry) => entry.projectKey && entry.projectAuto !== entry.project
+    )
+    setProjectEdit({ name: group.name, keys, autoName, overridden })
+    setProjectNameInput(group.name)
+  }
+
+  const saveProjectName = async (): Promise<void> => {
+    if (!projectEdit) return
+    const name = projectNameInput.trim()
+    if (!name) {
+      message.error('项目名不能为空')
+      return
+    }
+    setSavingProject(true)
+    try {
+      const current = await api.settings()
+      const projectOverrides = { ...current.projectOverrides }
+      for (const key of projectEdit.keys) projectOverrides[key] = name
+      await api.updateSettings({ projectOverrides })
+      setProjectEdit(null)
+      await refresh()
+    } catch (error) {
+      message.error(cleanError(error))
+    } finally {
+      setSavingProject(false)
+    }
+  }
+
+  const resetProjectName = async (): Promise<void> => {
+    if (!projectEdit) return
+    setSavingProject(true)
+    try {
+      const current = await api.settings()
+      const projectOverrides = { ...current.projectOverrides }
+      for (const key of projectEdit.keys) delete projectOverrides[key]
+      await api.updateSettings({ projectOverrides })
+      setProjectEdit(null)
+      await refresh()
+    } catch (error) {
+      message.error(cleanError(error))
+    } finally {
+      setSavingProject(false)
+    }
+  }
+
   return (
     <div className="pane">
       <div className="pane-header">
@@ -498,38 +562,29 @@ export default function WebAppsPane({
           <span>离线 {offlineCount}</span>
           <span className="muted">·</span>
           <span>历史最多保留 50 条</span>
-          <Button
-            size="small"
-            icon={<ReloadOutlined />}
-            loading={scanning}
-            onClick={refresh}
-          >
-            重新检测
-          </Button>
         </div>
       </div>
 
-      <div className="pane-body">
-        <div className="web-toolbar" style={{ padding: '12px 16px 0' }}>
-          <Input
-            allowClear
-            prefix={<SearchOutlined />}
-            placeholder="按项目 / 端口 / 标题搜索"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            style={{ width: 280 }}
-          />
-          {search ? (
-            <Button type="link" size="small" onClick={() => setSearch('')}>
-              清除筛选
-            </Button>
-          ) : null}
-          <div style={{ flex: 1 }} />
-          <span className="muted">
-            显示 {filtered.length} / {webApps.length}
-          </span>
-        </div>
+      <div className="pane-toolbar">
+        <Input
+          allowClear
+          className="pane-search"
+          prefix={<SearchOutlined />}
+          placeholder="按项目 / 端口 / 标题搜索"
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        {search ? (
+          <Button type="link" size="small" onClick={() => setSearch('')}>
+            清除筛选
+          </Button>
+        ) : null}
+        <span className="muted" style={{ marginLeft: 'auto' }}>
+          显示 {filtered.length} / {webApps.length}
+        </span>
+      </div>
 
+      <div className="pane-body">
         <Splitter orientation="vertical" className="web-splitter">
           <Splitter.Panel min={160} style={{ overflow: 'hidden' }}>
             <div className="web-list-scroll">
@@ -541,7 +596,7 @@ export default function WebAppsPane({
                       <span className="muted">
                         {webApps.length > 0
                           ? '没有匹配的项目或端口'
-                          : '暂无在线或历史记录。启动前端 / 后端后点击「重新检测」。'}
+                          : '暂无在线或历史记录。启动前端 / 后端后点击右上角「重新扫描」。'}
                       </span>
                     }
                   />
@@ -586,6 +641,16 @@ export default function WebAppsPane({
                             {visible < info.entries.length ? (
                               <span className="project-meta">· 显示 {visible}</span>
                             ) : null}
+                            <Tooltip title="重命名或合并项目">
+                              <Button
+                                size="small"
+                                type="text"
+                                className="project-edit"
+                                icon={<EditOutlined />}
+                                aria-label={`重命名或合并 ${info.name}`}
+                                onClick={() => openProjectEdit(info)}
+                              />
+                            </Tooltip>
                           </div>
                           <div className="project-actions">
                             <Tooltip title={`启动 ${info.name} 的离线端口`}>
@@ -644,8 +709,9 @@ export default function WebAppsPane({
                 </>
               )}
               <div className="muted web-list-note">
-                项目名取自设置中的项目根目录（默认 /mycode/、/code/，可在设置里修改）；离线记录保留最近
-                50 条。点击「进程」查看实时输出，最多并排 4 个（超出时替换最早打开的），分隔条可拖动，
+                项目名优先从进程工作目录向上识别 git 仓库 / package.json 等项目根；识别不到时显示
+                「未识别项目」，点项目名旁的铅笔手动命名或合并。离线记录保留最近 50 条。
+                点击「进程」查看实时输出，最多并排 4 个（超出时替换最早打开的），分隔条可拖动，
                 再次点击收起。Docker / SSH 转发或非当前用户的进程只展示，不会直接结束。
               </div>
             </div>
@@ -675,6 +741,50 @@ export default function WebAppsPane({
             </Splitter.Panel>
           ) : null}
         </Splitter>
+
+        <Modal
+          open={projectEdit !== null}
+          title="重命名或合并项目"
+          okText="保存"
+          cancelText="取消"
+          confirmLoading={savingProject}
+          onOk={saveProjectName}
+          onCancel={() => setProjectEdit(null)}
+        >
+          {projectEdit ? (
+            <div className="project-edit-body">
+              <Input
+                autoFocus
+                value={projectNameInput}
+                onChange={(event) => setProjectNameInput(event.target.value)}
+                onPressEnter={saveProjectName}
+                placeholder="项目名称"
+              />
+              <div className="project-edit-hint">
+                输入已有项目名即可合并；保存后会重新扫描。自动识别名：
+                {projectEdit.autoName}
+              </div>
+              <div className="project-suggestions">
+                {projects
+                  .filter((group) => group.name !== projectEdit.name)
+                  .map((group) => (
+                    <Tag
+                      key={group.name}
+                      className="project-suggestion"
+                      onClick={() => setProjectNameInput(group.name)}
+                    >
+                      {group.name}
+                    </Tag>
+                  ))}
+              </div>
+              {projectEdit.overridden ? (
+                <Button size="small" className="project-reset" onClick={resetProjectName}>
+                  恢复自动名称
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </Modal>
       </div>
     </div>
   )

@@ -63,3 +63,47 @@ if ('IntersectionObserver' in window && !reduceMotion) {
 document.querySelectorAll('[data-year]').forEach((element) => {
   element.textContent = String(new Date().getFullYear())
 })
+
+const lightbox = document.getElementById('lightbox')
+const lightboxImage = document.getElementById('lightbox-image')
+const lightboxCaption = document.getElementById('lightbox-caption')
+const lightboxClose = document.querySelector('.lightbox-close')
+
+if (lightbox && lightboxImage && lightboxCaption && lightboxClose) {
+  const closeLightbox = () => {
+    lightbox.hidden = true
+    document.body.classList.remove('lightbox-open')
+  }
+
+  const openLightbox = (image) => {
+    lightboxImage.src = image.currentSrc || image.src
+    lightboxImage.alt = image.alt || ''
+    lightboxCaption.textContent = image.alt || 'LocalPeek 截图'
+    lightbox.hidden = false
+    document.body.classList.add('lightbox-open')
+    lightboxClose.focus()
+  }
+
+  document
+    .querySelectorAll('.window img, .shot img, .gallery-item img')
+    .forEach((image) => {
+      image.tabIndex = 0
+      image.setAttribute('role', 'button')
+      image.setAttribute('aria-label', '放大截图')
+      image.title = '点击放大'
+      image.addEventListener('click', () => openLightbox(image))
+      image.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return
+        event.preventDefault()
+        openLightbox(image)
+      })
+    })
+
+  lightboxClose.addEventListener('click', closeLightbox)
+  lightbox.addEventListener('click', (event) => {
+    if (event.target === lightbox) closeLightbox()
+  })
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !lightbox.hidden) closeLightbox()
+  })
+}

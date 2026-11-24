@@ -1,11 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { App as AntApp, Button, Spin, Splitter, theme } from 'antd'
-import {
-  ContainerOutlined,
-  PlusOutlined,
-  ReloadOutlined,
-  SettingOutlined
-} from '@ant-design/icons'
+import { PlusOutlined, ReloadOutlined, SettingOutlined } from '@ant-design/icons'
 import { APP_NAME, APP_SUBTITLE } from '../../shared/appInfo'
 import type { InstanceMeta, ScanResult, ThemeMode, WebAppInfo } from '../../shared/types'
 import appIcon from './assets/app-icon.png'
@@ -78,6 +73,7 @@ export default function App({
     runScan()
   }, [runScan])
 
+  const portCount = instances.length + webApps.length
   const selection = parseSelection(selectedKey)
   const selectedInstance = useMemo(() => {
     if (!selection || selection.type === 'web') return undefined
@@ -213,7 +209,6 @@ export default function App({
           instance={selectedInstance}
           onUpdated={handleUpdated}
           onOpenDatabase={(instanceId, database) => navigate(databaseKey(instanceId, database))}
-          onRescan={runScan}
           onRemoveManual={handleRemoveManual}
         />
       )
@@ -226,7 +221,6 @@ export default function App({
             instance={selectedInstance}
             onUpdated={handleUpdated}
             onOpenDatabase={(instanceId, database) => navigate(databaseKey(instanceId, database))}
-            onRescan={runScan}
             onRemoveManual={handleRemoveManual}
           />
         )
@@ -247,7 +241,6 @@ export default function App({
             instance={selectedInstance}
             onUpdated={handleUpdated}
             onOpenDatabase={(instanceId, database) => navigate(databaseKey(instanceId, database))}
-            onRescan={runScan}
             onRemoveManual={handleRemoveManual}
           />
         )
@@ -264,12 +257,13 @@ export default function App({
     return (
       <Welcome
         instances={instances}
-        webCount={webApps.filter((app) => app.online).length}
+        webCount={webApps.length}
         scannedAt={scanned?.scannedAt ?? 0}
-        dockerAvailable={scanned?.dockerAvailable ?? false}
         scanning={scanning}
         onScan={runScan}
         onAdd={() => setAddOpen(true)}
+        onOpenInstance={(instanceId) => navigate(instanceKey(instanceId))}
+        onOpenWeb={() => navigate(webKey())}
       />
     )
   })()
@@ -294,14 +288,30 @@ export default function App({
         </button>
         <div className="header-actions">
           {scanning ? (
-            <span className="muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <span
+              className="header-status"
+              style={{
+                background: token.colorFillQuaternary,
+                borderColor: token.colorBorderSecondary
+              }}
+            >
               <Spin size="small" />
-              正在扫描
+              <span>正在扫描</span>
             </span>
           ) : scanned ? (
-            <span className="muted">
-              {instances.length} 个实例 · {formatTime(scanned.scannedAt)} 更新
-            </span>
+            <div
+              className="header-status"
+              style={{
+                background: token.colorFillQuaternary,
+                borderColor: token.colorBorderSecondary
+              }}
+              title={`上次扫描 ${formatTime(scanned.scannedAt)}`}
+            >
+              <span className="status-dot status-ready" />
+              <span>{portCount} 个端口</span>
+              <span className="header-status-divider" />
+              <span className="header-status-time mono">{formatTime(scanned.scannedAt)}</span>
+            </div>
           ) : null}
           <Button icon={<PlusOutlined />} onClick={() => setAddOpen(true)}>
             添加连接
@@ -333,10 +343,6 @@ export default function App({
                 className="sidebar-footer"
                 style={{ borderColor: token.colorBorderSecondary }}
               >
-                <span>
-                  <ContainerOutlined /> Docker {scanned?.dockerAvailable ? '可用' : '不可用'}
-                </span>
-                <span>更新于 {formatTime(scanned?.scannedAt ?? 0)}</span>
                 <div className="sidebar-footer-actions">
                   <Button
                     type="text"
@@ -366,7 +372,6 @@ export default function App({
         onThemeModeChange={onThemeModeChange}
         onClose={() => setSettingsOpen(false)}
         onWebAppsUpdated={handleWebAppsUpdated}
-        onRescan={runScan}
       />
     </div>
   )

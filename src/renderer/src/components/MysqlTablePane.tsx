@@ -327,15 +327,15 @@ function DataView({
 
   return (
     <div className="pane-body" style={{ minHeight: 0 }}>
-      <div className="toolbar">
+      <div className="pane-toolbar">
         <Input
           allowClear
+          className="pane-search"
           prefix={<SearchOutlined />}
           placeholder="关键词（在所有文本列中 LIKE 搜索）"
           value={keywordInput}
           onChange={(event) => setKeywordInput(event.target.value)}
           onPressEnter={apply}
-          style={{ width: 260 }}
         />
         <Input
           allowClear

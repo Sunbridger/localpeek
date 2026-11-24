@@ -3,10 +3,14 @@ import http from 'node:http'
 import os from 'node:os'
 import { promisify } from 'node:util'
 import { APP_NAME } from '../../shared/appInfo'
-import { DEFAULT_SETTINGS, type AppSettings } from '../../shared/settings'
+import {
+  DEFAULT_SETTINGS,
+  resolveProjectName,
+  type AppSettings
+} from '../../shared/settings'
 import type { WebAppInfo, WebAppRole } from '../../shared/types'
 import { lsofBinary, psBinary } from '../platform'
-import { extractProjectName } from '../projectName'
+import { detectProject } from '../projectName'
 import {
   isDockerCommand,
   isSshCommand,
@@ -252,6 +256,15 @@ export async function scanWebApps(
       const blocked = details.filter((item) => !item.killable)
       const killable = blocked.length === 0
       const commandLine = primary.commandLine
+      const cwd = primary.cwd ?? details.find((item) => item.cwd)?.cwd
+      const identity = detectProject(cwd)
+      const projectKey = identity?.key ?? (cwd ? `path:${cwd}` : `port:${port}`)
+      const projectAuto = identity?.name
+      const project = resolveProjectName(
+        projectKey,
+        projectAuto,
+        settings.projectOverrides
+      )
 
       return {
         port,
@@ -262,11 +275,9 @@ export async function scanWebApps(
         user: primary.user,
         command: primary.command,
         commandLine,
-        project: extractProjectName(
-          commandLine ?? primary.command,
-          primary.cwd,
-          settings.projectRoots
-        ),
+        project,
+        projectAuto,
+        projectKey,
         cwd: primary.cwd,
         url: `http://localhost:${port}/`,
         role: classifyRole(port, commandLine ?? primary.command, probe.contentType ?? ''),

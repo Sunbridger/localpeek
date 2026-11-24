@@ -1,48 +1,62 @@
-import { describe, expect, it } from 'vitest'
-import { extractProjectName } from '../src/main/projectName'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
+import { afterEach, describe, expect, it } from 'vitest'
+import { detectProject } from '../src/main/projectName'
 
-describe('extractProjectName', () => {
-  it('parses project names from /mycode/ paths', () => {
-    expect(
-      extractProjectName(
-        'node /Users/me/mycode/demo-project/frontend/node_modules/.bin/vite --host 127.0.0.1 --port 5173'
-      )
-    ).toBe('demo-project')
+const dirs: string[] = []
+
+function tempDir(): string {
+  const dir = mkdtempSync(join(tmpdir(), 'localpeek-project-'))
+  dirs.push(dir)
+  return dir
+}
+
+afterEach(() => {
+  for (const dir of dirs.splice(0)) rmSync(dir, { recursive: true, force: true })
+})
+
+describe('detectProject', () => {
+  it('uses the git repo root for packages inside a monorepo', () => {
+    const root = tempDir()
+    const repo = join(root, 'shop-repo')
+    mkdirSync(join(repo, '.git'), { recursive: true })
+    const packageDir = join(repo, 'packages', 'api')
+    mkdirSync(packageDir, { recursive: true })
+    writeFileSync(join(packageDir, 'package.json'), '{}')
+
+    const identity = detectProject(packageDir)
+    expect(identity?.name).toBe('shop-repo')
+    expect(identity?.source).toBe('repo')
+    expect(identity?.key.startsWith('repo:')).toBe(true)
   })
 
-  it('supports custom project roots from settings', () => {
-    expect(
-      extractProjectName(
-        'node /Users/me/work/client-a/frontend/node_modules/.bin/vite',
-        undefined,
-        ['work']
-      )
-    ).toBe('client-a')
+  it('falls back to the parent name for non-git generic package dirs', () => {
+    const root = tempDir()
+    const project = join(root, 'my-project')
+    const frontend = join(project, 'frontend')
+    mkdirSync(frontend, { recursive: true })
+    writeFileSync(join(frontend, 'package.json'), '{}')
+
+    const identity = detectProject(frontend)
+    expect(identity?.name).toBe('my-project')
+    expect(identity?.source).toBe('package')
   })
 
-  it('parses project names from /code/ paths', () => {
-    expect(extractProjectName('python3 /Users/me/code/agent-api/app.py')).toBe('agent-api')
-    expect(extractProjectName(undefined, '/Users/me/code/web-console/frontend')).toBe('web-console')
+  it('uses a non-generic package directory name', () => {
+    const root = tempDir()
+    const packageDir = join(root, 'shop')
+    mkdirSync(packageDir, { recursive: true })
+    writeFileSync(join(packageDir, 'package.json'), '{}')
+
+    expect(detectProject(packageDir)?.name).toBe('shop')
   })
 
-  it('prefers the command line over the cwd', () => {
-    expect(
-      extractProjectName(
-        'node /Users/me/mycode/first-project/frontend/vite',
-        '/Users/me/mycode/second-project/frontend'
-      )
-    ).toBe('first-project')
-  })
+  it('returns undefined when no project markers exist', () => {
+    const root = tempDir()
+    const cwd = join(root, 'misc', 'app')
+    mkdirSync(cwd, { recursive: true })
 
-  it('falls back to the last meaningful cwd segment', () => {
-    expect(extractProjectName('uvicorn app:app', '/Users/me/projects/bar/frontend')).toBe('bar')
-    expect(extractProjectName('node server.js', '/Users/me/projects/backend')).toBe('projects')
-    expect(extractProjectName('node server.js', '/Users/me/projects/shop/api')).toBe('shop')
-  })
-
-  it('returns undefined when nothing meaningful is available', () => {
-    expect(extractProjectName(undefined, '/frontend')).toBeUndefined()
-    expect(extractProjectName(undefined, '/')).toBeUndefined()
-    expect(extractProjectName('node server.js')).toBeUndefined()
+    expect(detectProject(cwd)).toBeUndefined()
   })
 })

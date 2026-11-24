@@ -14,8 +14,7 @@ import {
 } from 'antd'
 import {
   ContainerOutlined,
-  DatabaseOutlined,
-  ReloadOutlined
+  DatabaseOutlined
 } from '@ant-design/icons'
 import { APP_NAME, CONFIG_FILE_NAME } from '../../../shared/appInfo'
 import type { InstanceMeta } from '../../../shared/types'
@@ -27,7 +26,6 @@ interface InstancePaneProps {
   instance: InstanceMeta
   onUpdated: (instance: InstanceMeta) => void
   onOpenDatabase: (instanceId: string, database: string) => void
-  onRescan: () => void
   onRemoveManual: (instanceId: string) => void
 }
 
@@ -96,12 +94,10 @@ function InstanceHeader({
 
 function ConnectionGate({
   instance,
-  onUpdated,
-  onRescan
+  onUpdated
 }: {
   instance: InstanceMeta
   onUpdated: (instance: InstanceMeta) => void
-  onRescan: () => void
 }) {
   const { message } = App.useApp()
   const [submitting, setSubmitting] = useState(false)
@@ -167,9 +163,6 @@ function ConnectionGate({
           <div className="gate-actions">
             <Button type="primary" htmlType="submit" loading={submitting}>
               连接并保存
-            </Button>
-            <Button icon={<ReloadOutlined />} onClick={onRescan}>
-              重新扫描
             </Button>
           </div>
         </Form>
@@ -281,7 +274,6 @@ export default function InstancePane({
   instance,
   onUpdated,
   onOpenDatabase,
-  onRescan,
   onRemoveManual
 }: InstancePaneProps) {
   const ready = instance.status === 'ready'
@@ -289,7 +281,7 @@ export default function InstancePane({
     <div className="pane">
       <InstanceHeader instance={instance} onRemoveManual={onRemoveManual} />
       {!ready ? (
-        <ConnectionGate instance={instance} onUpdated={onUpdated} onRescan={onRescan} />
+        <ConnectionGate instance={instance} onUpdated={onUpdated} />
       ) : instance.kind === 'redis' ? (
         <RedisBrowser instance={instance} />
       ) : (

@@ -194,7 +194,7 @@ export default function RedisBrowser({ instance }: RedisBrowserProps) {
 
   return (
     <div className="redis-browser">
-      <div className="redis-toolbar">
+      <div className="pane-toolbar">
         <Select
           value={db}
           onChange={(value) => setDb(value)}
@@ -210,8 +210,7 @@ export default function RedisBrowser({ instance }: RedisBrowserProps) {
           onChange={(event) => setPatternInput(event.target.value)}
           onPressEnter={() => setPattern(patternInput.trim())}
           placeholder="MATCH 模式，如 user:*"
-          className="mono"
-          style={{ width: 280 }}
+          className="mono pane-search"
         />
         <Button icon={<ReloadOutlined />} onClick={refresh}>
           刷新

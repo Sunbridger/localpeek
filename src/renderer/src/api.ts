@@ -18,6 +18,13 @@ export const api: LocalPeekApi = {
   settings: wrap(raw.settings),
   updateSettings: wrap(raw.updateSettings),
   paths: wrap(raw.paths),
+  updates: {
+    check: wrap(raw.updates.check),
+    download: wrap(raw.updates.download),
+    install: wrap(raw.updates.install),
+    openDownloaded: wrap(raw.updates.openDownloaded),
+    onProgress: raw.updates.onProgress
+  },
   onNavigate: raw.onNavigate,
   onOpenSettings: raw.onOpenSettings,
   onScanResult: raw.onScanResult,

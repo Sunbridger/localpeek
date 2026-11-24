@@ -1,26 +1,26 @@
 import { describe, expect, test } from 'vitest'
 import {
   DEFAULT_SETTINGS,
-  parseProjectRootsInput,
+  resolveProjectName,
   sanitizeSettings
 } from '../src/shared/settings'
 
-describe('parseProjectRootsInput', () => {
-  test('parses comma, Chinese comma and whitespace separated roots', () => {
-    expect(parseProjectRootsInput('mycode, code，work  projects')).toEqual([
-      'mycode',
-      'code',
-      'work',
-      'projects'
-    ])
+describe('project overrides', () => {
+  test('keeps valid string overrides and trims values', () => {
+    const settings = sanitizeSettings({
+      projectOverrides: {
+        'repo:/Users/me/code/shop': ' 商城 ',
+        'repo:/empty': '',
+        'repo:/number': 42
+      }
+    })
+    expect(settings.projectOverrides).toEqual({ 'repo:/Users/me/code/shop': '商城' })
   })
 
-  test('strips leading/trailing slashes and deduplicates', () => {
-    expect(parseProjectRootsInput(' /mycode/ , code, mycode ')).toEqual(['mycode', 'code'])
-  })
-
-  test('ignores empty and nested values', () => {
-    expect(parseProjectRootsInput('code, , a/b, c\\d')).toEqual(['code'])
+  test('resolveProjectName prefers the override for the project key', () => {
+    expect(resolveProjectName('repo:/a', 'auto', { 'repo:/a': 'Merged' })).toBe('Merged')
+    expect(resolveProjectName('repo:/b', 'auto', { 'repo:/a': 'Merged' })).toBe('auto')
+    expect(resolveProjectName(undefined, 'auto', {})).toBe('auto')
   })
 })
 
@@ -35,7 +35,6 @@ describe('sanitizeSettings', () => {
   test('merges valid partial settings', () => {
     const settings = sanitizeSettings({
       scanHost: '192.168.1.20',
-      projectRoots: ['work', 'dev'],
       dbPorts: [4306, 6380],
       dbPortRanges: [[4300, 4310]],
       webPortRanges: [[3000, 3010]],
@@ -44,19 +43,18 @@ describe('sanitizeSettings', () => {
     })
     expect(settings).toEqual({
       scanHost: '192.168.1.20',
-      projectRoots: ['work', 'dev'],
       dbPorts: [4306, 6380],
       dbPortRanges: [[4300, 4310]],
       webPortRanges: [[3000, 3010]],
       redisDbs: 4,
-      webHistoryLimit: 120
+      webHistoryLimit: 120,
+      projectOverrides: {}
     })
   })
 
   test('falls back per field for invalid values', () => {
     const settings = sanitizeSettings({
       scanHost: '   ',
-      projectRoots: ['', '  ', 'ok/', 'ok'],
       dbPorts: [0, 70000, 6379, 'x'],
       dbPortRanges: [[10, 5], [1, 2, 3], [9000, 9100]],
       webPortRanges: 'bad',
@@ -64,7 +62,6 @@ describe('sanitizeSettings', () => {
       webHistoryLimit: 9999
     })
     expect(settings.scanHost).toBe(DEFAULT_SETTINGS.scanHost)
-    expect(settings.projectRoots).toEqual(['ok'])
     expect(settings.dbPorts).toEqual([6379])
     expect(settings.dbPortRanges).toEqual([[9000, 9100]])
     expect(settings.webPortRanges).toEqual(DEFAULT_SETTINGS.webPortRanges)
@@ -82,11 +79,9 @@ describe('sanitizeSettings', () => {
 
   test('deduplicates list values', () => {
     const settings = sanitizeSettings({
-      projectRoots: ['code', 'code'],
       dbPorts: [6379, 6379, 3306],
       dbPortRanges: [[3300, 3400], [3300, 3400]]
     })
-    expect(settings.projectRoots).toEqual(['code'])
     expect(settings.dbPorts).toEqual([6379, 3306])
     expect(settings.dbPortRanges).toEqual([[3300, 3400]])
   })

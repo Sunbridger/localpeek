@@ -3,8 +3,6 @@ export type PortRange = [number, number]
 export interface AppSettings {
   /** 自动发现扫描的主机 */
   scanHost: string
-  /** 从路径中识别项目名的根目录，如 /mycode/<项目>/ */
-  projectRoots: string[]
   /** 常用数据库端口 + 额外扫描区间 */
   dbPorts: number[]
   dbPortRanges: PortRange[]
@@ -14,11 +12,12 @@ export interface AppSettings {
   redisDbs: number
   /** Web 端口历史保留条数 */
   webHistoryLimit: number
+  /** 按自动识别出的项目键覆盖显示名；相同名称即视为合并 */
+  projectOverrides: Record<string, string>
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   scanHost: '127.0.0.1',
-  projectRoots: ['mycode', 'code'],
   dbPorts: [3306, 3307, 3308, 6379, 6380, 6479],
   dbPortRanges: [
     [3300, 3400],
@@ -42,7 +41,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     [9200, 9300]
   ],
   redisDbs: 16,
-  webHistoryLimit: 50
+  webHistoryLimit: 50,
+  projectOverrides: {}
 }
 
 function isPort(value: unknown): value is number {
@@ -77,29 +77,6 @@ function sanitizeRanges(value: unknown, fallback: PortRange[]): PortRange[] {
     : fallback.map(([start, end]) => [start, end] as PortRange)
 }
 
-/** 把设置页里的逗号/空白分隔输入解析成项目根目录列表。 */
-export function parseProjectRootsInput(input: string): string[] {
-  const roots: string[] = []
-  for (const item of input.split(/[,，\s]+/)) {
-    const root = item.trim().replace(/^\/+|\/+$/g, '')
-    if (!root || root.includes('/') || root.includes('\\') || roots.includes(root)) continue
-    roots.push(root)
-  }
-  return roots
-}
-
-function sanitizeRoots(value: unknown, fallback: string[]): string[] {
-  if (!Array.isArray(value)) return [...fallback]
-  const roots: string[] = []
-  for (const item of value) {
-    if (typeof item !== 'string') continue
-    const root = item.trim().replace(/^\/+|\/+$/g, '')
-    if (!root || root.includes('/') || root.includes('\\') || roots.includes(root)) continue
-    roots.push(root)
-  }
-  return roots.length > 0 ? roots : [...fallback]
-}
-
 function sanitizeHost(value: unknown): string {
   if (typeof value !== 'string') return DEFAULT_SETTINGS.scanHost
   const host = value.trim()
@@ -113,12 +90,35 @@ function sanitizeBoundedInt(value: unknown, min: number, max: number, fallback: 
     : fallback
 }
 
+function sanitizeOverrides(value: unknown): Record<string, string> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+  const overrides: Record<string, string> = {}
+  for (const [key, name] of Object.entries(value)) {
+    if (typeof name !== 'string') continue
+    const trimmedKey = key.trim()
+    const trimmedName = name.trim().slice(0, 80)
+    if (!trimmedKey || !trimmedName) continue
+    overrides[trimmedKey] = trimmedName
+    if (Object.keys(overrides).length >= 500) break
+  }
+  return overrides
+}
+
+/** 按自动项目键取显示名；没有覆盖时使用自动名。 */
+export function resolveProjectName(
+  key: string | undefined,
+  autoName: string | undefined,
+  overrides: Record<string, string>
+): string | undefined {
+  if (key && Object.prototype.hasOwnProperty.call(overrides, key)) return overrides[key]
+  return autoName
+}
+
 /** 用默认值补齐并逐字段校验配置，非法字段回退到默认值。 */
 export function sanitizeSettings(raw: unknown): AppSettings {
   const value = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {}
   return {
     scanHost: sanitizeHost(value.scanHost),
-    projectRoots: sanitizeRoots(value.projectRoots, DEFAULT_SETTINGS.projectRoots),
     dbPorts: sanitizePorts(value.dbPorts, DEFAULT_SETTINGS.dbPorts),
     dbPortRanges: sanitizeRanges(value.dbPortRanges, DEFAULT_SETTINGS.dbPortRanges),
     webPortRanges: sanitizeRanges(value.webPortRanges, DEFAULT_SETTINGS.webPortRanges),
@@ -128,6 +128,7 @@ export function sanitizeSettings(raw: unknown): AppSettings {
       1,
       500,
       DEFAULT_SETTINGS.webHistoryLimit
-    )
+    ),
+    projectOverrides: sanitizeOverrides(value.projectOverrides)
   }
 }
